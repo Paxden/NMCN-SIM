@@ -1190,3 +1190,5 @@ body.task-open .toast {
 .account-bar .tour-skip {
   color: #cbd5e1;
 }
+
+.inline-form.stacked { flex-direction: column; align-items: flex-start; }

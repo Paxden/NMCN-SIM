@@ -27,8 +27,16 @@ export function CreateServer() {
         <label>Server ID</label>
         <input value={id} onChange={(e) => setId(e.target.value)} autoFocus />
         <label>Password</label>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
-        <button className="btn btn-primary block" type="submit" data-tour="create-btn">
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+        />
+        <button
+          className="btn btn-primary block"
+          type="submit"
+          data-tour="create-btn"
+        >
           Create
         </button>
       </form>
@@ -60,8 +68,14 @@ export function Login() {
         <label>Server ID</label>
         <input value={id} onChange={(e) => setId(e.target.value)} autoFocus />
         <label>Password</label>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
-        <button className="btn btn-primary block" type="submit">Login</button>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+        />
+        <button className="btn btn-primary block" type="submit">
+          Login
+        </button>
       </form>
     </div>
   );
@@ -71,8 +85,8 @@ export function Login() {
 
 const NAV = [
   ["/admin/home", "Home"],
-  ["/admin/manage", "Manage"],
   ["/admin/monitor", "Monitor"],
+  ["/admin/manage", "Manage"],
   ["/admin/upload", "Download and Upload"],
   ["/admin/sync", "Synchronise"],
   ["/admin/reset", "Reset"],
@@ -91,7 +105,11 @@ export function AdminShell({ path }) {
   else page = <div className="card">Page not found.</div>;
 
   const current =
-    path === "/admin" ? "/admin/home" : path.startsWith("/admin/monitor") ? "/admin/monitor" : path;
+    path === "/admin"
+      ? "/admin/home"
+      : path.startsWith("/admin/monitor")
+        ? "/admin/monitor"
+        : path;
 
   return (
     <>
@@ -104,7 +122,9 @@ export function AdminShell({ path }) {
             </Link>
           ))}
         </div>
-        <button className="btn btn-light btn-sm" onClick={logout}>Logout</button>
+        <button className="btn btn-light btn-sm" onClick={logout}>
+          Logout
+        </button>
       </nav>
       <main className="container">{page}</main>
     </>
@@ -121,7 +141,8 @@ function Home() {
         <h2>No examination loaded</h2>
         {mode !== "assessment" && (
           <p className="muted">
-            Go to <Link to="/admin/upload">Download and Upload</Link> and download the exam first.
+            Go to <Link to="/admin/upload">Download and Upload</Link> and
+            download the exam first.
           </p>
         )}
       </div>
@@ -129,8 +150,8 @@ function Home() {
   const [label, color] = !activated
     ? ["Not activated", "gray"]
     : ended
-    ? ["Ended", "red"]
-    : ["In progress", "green"];
+      ? ["Ended", "red"]
+      : ["In progress", "green"];
   return (
     <div className="card" data-tour="home-card">
       <h2>{EXAM.name}</h2>
@@ -141,7 +162,16 @@ function Home() {
 }
 
 function Monitor() {
-  const { candidates, infractions, downloaded, activated, ended, endExam, showToast, mode } = useSim();
+  const {
+    candidates,
+    infractions,
+    downloaded,
+    activated,
+    ended,
+    endExam,
+    showToast,
+    mode,
+  } = useSim();
   const hints = mode !== "assessment";
   const [confirm, setConfirm] = useState(false);
   const writing = candidates.filter((c) => c.status === "writing").length;
@@ -151,17 +181,33 @@ function Monitor() {
     <>
       {hints && !downloaded && (
         <div className="note">
-          No exam loaded. Download it from <Link to="/admin/upload">Download and Upload</Link>.
+          No exam loaded. Download it from{" "}
+          <Link to="/admin/upload">Download and Upload</Link>.
         </div>
       )}
       {hints && downloaded && !activated && (
-        <div className="note">The exam has not been activated. Activate it from Download and Upload.</div>
+        <div className="note">
+          The exam has not been activated. Activate it from Download and Upload.
+        </div>
       )}
       <div className="stats" data-tour="stats">
-        <div className="stat"><div className="stat-label">Total candidate</div><div className="stat-num">{candidates.length}</div></div>
-        <div className="stat"><div className="stat-label">Writing</div><div className="stat-num">{writing}</div></div>
-        <div className="stat"><div className="stat-label">Submitted</div><div className="stat-num">{submitted}</div></div>
-        <Link to="/admin/monitor/infractions" className="stat clickable" data-tour="infraction-card">
+        <div className="stat">
+          <div className="stat-label">Total candidate</div>
+          <div className="stat-num">{candidates.length}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Writing</div>
+          <div className="stat-num">{writing}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Submitted</div>
+          <div className="stat-num">{submitted}</div>
+        </div>
+        <Link
+          to="/admin/monitor/infractions"
+          className="stat clickable"
+          data-tour="infraction-card"
+        >
           <div className="stat-label">Infraction</div>
           <div className="stat-num">{infractions.length}</div>
         </Link>
@@ -181,22 +227,37 @@ function Monitor() {
       <div className="card table-wrap scroll" data-tour="cand-table">
         <table>
           <thead>
-            <tr><th>Exam No</th><th>Name</th><th>Session</th><th>Submitted</th></tr>
+            <tr>
+              <th>Exam No</th>
+              <th>Name</th>
+              <th>Session</th>
+              <th>Submitted</th>
+            </tr>
           </thead>
           <tbody>
             {candidates.length === 0 && (
-              <tr><td colSpan={4} className="muted">No candidates yet.</td></tr>
+              <tr>
+                <td colSpan={4} className="muted">
+                  No candidates yet.
+                </td>
+              </tr>
             )}
             {candidates.map((c) => (
               <tr key={c.examNo}>
                 <td>{c.examNo}</td>
                 <td>{c.name}</td>
-                <td className="num">{c.answered}/{TOTAL_Q}</td>
+                <td className="num">
+                  {c.answered}/{TOTAL_Q}
+                </td>
                 <td>
                   {c.status === "submitted" ? (
-                    <span className="mark mark-yes" title="Submitted"><IconCheck /></span>
+                    <span className="mark mark-yes" title="Submitted">
+                      <IconCheck />
+                    </span>
                   ) : (
-                    <span className="mark mark-no" title="Not submitted"><IconCross /></span>
+                    <span className="mark mark-no" title="Not submitted">
+                      <IconCross />
+                    </span>
                   )}
                 </td>
               </tr>
@@ -230,7 +291,7 @@ function Infractions() {
     infractions.reduce((acc, i) => {
       (acc[i.examNo] ||= { examNo: i.examNo, items: [] }).items.push(i);
       return acc;
-    }, {})
+    }, {}),
   );
   const nameOf = (x) => candidates.find((c) => c.examNo === x)?.name || "";
 
@@ -243,11 +304,23 @@ function Infractions() {
 
   return (
     <>
-      <p><Link to="/admin/monitor">&larr; Back to Monitor</Link></p>
-      <form className="card inline-form" onSubmit={submit} data-tour="unflag-form">
+      <p>
+        <Link to="/admin/monitor">&larr; Back to Monitor</Link>
+      </p>
+      <form
+        className="card inline-form stacked"
+        onSubmit={submit}
+        data-tour="unflag-form"
+      >
         <label>Candidate Number</label>
-        <input value={no} onChange={(e) => setNo(e.target.value)} placeholder="e.g. NSG26009" />
-        <button className="btn btn-primary" type="submit">Remove Infraction</button>
+        <input
+          value={no}
+          onChange={(e) => setNo(e.target.value)}
+          placeholder="e.g. NSG26009"
+        />
+        <button className="btn btn-primary" type="submit">
+          Remove Infraction
+        </button>
       </form>
 
       <div className="card table-wrap" data-tour="infraction-list">
@@ -256,13 +329,22 @@ function Infractions() {
           <p className="muted">No infractions recorded.</p>
         ) : (
           <table>
-            <thead><tr><th>Exam No</th><th>Name</th><th>Count</th><th>Details</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Exam No</th>
+                <th>Name</th>
+                <th>Count</th>
+                <th>Details</th>
+              </tr>
+            </thead>
             <tbody>
               {grouped.map((g) => (
                 <tr key={g.examNo}>
                   <td>{g.examNo}</td>
                   <td>{nameOf(g.examNo)}</td>
-                  <td><span className="badge badge-red">{g.items.length}</span></td>
+                  <td>
+                    <span className="badge badge-red">{g.items.length}</span>
+                  </td>
                   <td>{g.items.map((i) => i.reason).join(", ")}</td>
                 </tr>
               ))}
@@ -286,10 +368,20 @@ function Manage() {
   };
 
   return (
-    <form className="card inline-form" onSubmit={submit} data-tour="relogin-form">
+    <form
+      className="card inline-form stacked"
+      onSubmit={submit}
+      data-tour="relogin-form"
+    >
       <label>Relogin Candidate</label>
-      <input value={no} onChange={(e) => setNo(e.target.value)} placeholder="Candidate exam number" />
-      <button className="btn btn-primary" type="submit">Relogin</button>
+      <input
+        value={no}
+        onChange={(e) => setNo(e.target.value)}
+        placeholder="Candidate exam number"
+      />
+      <button className="btn btn-primary" type="submit">
+        Relogin
+      </button>
     </form>
   );
 }
@@ -314,7 +406,12 @@ function Synchronise() {
     <div className="card">
       <h2>Synchronise</h2>
       <p className="muted">Download new data from the central server.</p>
-      <button className="btn btn-primary" data-tour="sync-btn" onClick={run} disabled={busy}>
+      <button
+        className="btn btn-primary"
+        data-tour="sync-btn"
+        onClick={run}
+        disabled={busy}
+      >
         {busy ? "Synchronising..." : "Synchronise"}
       </button>
     </div>
@@ -325,8 +422,20 @@ const DL_ITEMS = ["Examination", "Candidates", "Questions"];
 
 function UploadDownload() {
   const {
-    candidates, online, downloaded, activated, ended, sessionActive, uploaded,
-    download, activateExam, activateSession, uploadSession, showToast, netMsg, mode,
+    candidates,
+    online,
+    downloaded,
+    activated,
+    ended,
+    sessionActive,
+    uploaded,
+    download,
+    activateExam,
+    activateSession,
+    uploadSession,
+    showToast,
+    netMsg,
+    mode,
   } = useSim();
   const hints = mode !== "assessment";
   const [phase, setPhase] = useState(-1); // -1 idle, 0..2 downloading item n
@@ -357,14 +466,24 @@ function UploadDownload() {
           <>
             <h2>Download Examination</h2>
             <p className="muted">
-              Download the examination, its candidates and its questions from the central server.
+              Download the examination, its candidates and its questions from
+              the central server.
               {hints && " An internet connection is required."}
             </p>
             <ul className="dl-list">
               {DL_ITEMS.map((n, i) => (
-                <li key={n} className={phase > i ? "done" : phase === i ? "busy" : ""}>
+                <li
+                  key={n}
+                  className={phase > i ? "done" : phase === i ? "busy" : ""}
+                >
                   <span className="dl-mark">
-                    {phase > i ? <IconCheck size={15} /> : phase === i ? "…" : "•"}
+                    {phase > i ? (
+                      <IconCheck size={15} />
+                    ) : phase === i ? (
+                      "…"
+                    ) : (
+                      "•"
+                    )}
                   </span>
                   {n}
                 </li>
@@ -383,8 +502,8 @@ function UploadDownload() {
           <>
             <h2>{EXAM.name}</h2>
             <p>
-              Number of candidates: <strong>{candidates.length}</strong> &nbsp;·&nbsp; Questions:{" "}
-              <strong>{TOTAL_Q}</strong>
+              Number of candidates: <strong>{candidates.length}</strong>{" "}
+              &nbsp;·&nbsp; Questions: <strong>{TOTAL_Q}</strong>
             </p>
             <button
               className="btn btn-primary"
@@ -402,7 +521,10 @@ function UploadDownload() {
         <div className="card" data-tour="session-list">
           <h3>Sessions</h3>
           {hints && !ended && (
-            <p className="muted">Upload becomes available after the exam has been ended on the Monitor page.</p>
+            <p className="muted">
+              Upload becomes available after the exam has been ended on the
+              Monitor page.
+            </p>
           )}
           {EXAM.sessions.map((session, i) => {
             const active = !!sessionActive[session];
@@ -412,7 +534,10 @@ function UploadDownload() {
                 <a
                   href="#details"
                   className="link grow"
-                  onClick={(e) => { e.preventDefault(); setDetails(session); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDetails(session);
+                  }}
                 >
                   {EXAM.name} <span className="muted">· {session}</span>
                 </a>
@@ -444,15 +569,27 @@ function UploadDownload() {
             <h3>{EXAM.name}</h3>
             <p>{details}</p>
             <p>
-              Candidates: <strong>{candidates.filter((c) => c.session === details).length}</strong>
+              Candidates:{" "}
+              <strong>
+                {candidates.filter((c) => c.session === details).length}
+              </strong>
               <br />
               Submitted:{" "}
               <strong>
-                {candidates.filter((c) => c.session === details && c.status === "submitted").length}
+                {
+                  candidates.filter(
+                    (c) => c.session === details && c.status === "submitted",
+                  ).length
+                }
               </strong>
             </p>
             <div className="dialog-actions">
-              <button className="btn btn-light" onClick={() => setDetails(null)}>Close</button>
+              <button
+                className="btn btn-light"
+                onClick={() => setDetails(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -468,22 +605,37 @@ function Reset() {
 
   const askCandidate = (e) => {
     e.preventDefault();
-    if (!no.trim()) return showToast("Enter the candidate exam number", "error");
+    if (!no.trim())
+      return showToast("Enter the candidate exam number", "error");
     setDlg("candidate");
   };
 
   return (
     <>
-      <form className="card inline-form" onSubmit={askCandidate} data-tour="reset-candidate">
+      <form
+        className="card inline-form stacked "
+        onSubmit={askCandidate}
+        data-tour="reset-candidate"
+      >
         <label>Reset Candidate</label>
-        <input value={no} onChange={(e) => setNo(e.target.value)} placeholder="Candidate exam number" />
-        <button className="btn btn-warning" type="submit">Reset Candidate</button>
+        <input
+          value={no}
+          onChange={(e) => setNo(e.target.value)}
+          placeholder="Candidate exam number"
+        />
+        <button className="btn btn-warning" type="submit">
+          Reset Candidate
+        </button>
       </form>
 
       <div className="card" data-tour="reset-server">
         <h3>Reset Server</h3>
-        <p className="muted">Clears the exam, candidates and all progress on this server.</p>
-        <button className="btn btn-danger" onClick={() => setDlg("server")}>Reset Server</button>
+        <p className="muted">
+          Clears the exam, candidates and all progress on this server.
+        </p>
+        <button className="btn btn-danger" onClick={() => setDlg("server")}>
+          Reset Server
+        </button>
       </div>
 
       <ConfirmDialog
