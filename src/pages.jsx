@@ -304,9 +304,15 @@ function Infractions() {
 
   return (
     <>
-      <p>
-        <Link to="/admin/monitor">&larr; Back to Monitor</Link>
-      </p>
+      <div className="actions-bar" style={{ marginBottom: 12 }}>
+        <Link
+          to="/admin/monitor"
+          className="btn btn-light btn-sm"
+          data-tour="back-to-monitor"
+        >
+          &larr; Back to Monitor
+        </Link>
+      </div>
       <form
         className="card inline-form stacked"
         onSubmit={submit}

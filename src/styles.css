@@ -1192,3 +1192,92 @@ body.task-open .toast {
 }
 
 .inline-form.stacked { flex-direction: column; align-items: flex-start; }
+
+/* Append to the bottom of src/styles.css (replaces the earlier .account-bar block) */
+
+/* any <a className="btn ..."> should look like a button, not a link */
+a.btn { display: inline-block; text-decoration: none; text-align: center; }
+a.btn-primary, a.btn-primary:hover { color: #fff; }
+a.btn-light, a.btn-light:hover { color: #111827; }
+a.btn.block { display: block; }
+.btn-primary:hover:not(:disabled) { background: #1e40af; }
+.btn-light:hover:not(:disabled) { background: #d1d5db; }
+
+/* outlined button for secondary actions */
+.btn-outline { background: #fff; color: #1d4ed8; border: 2px solid #1d4ed8; }
+.btn-outline:hover:not(:disabled) { background: #eff6ff; }
+
+/* login page: alternative actions under the main button */
+.auth-alt { margin-top: 18px; padding-top: 14px; border-top: 1px solid #e5e7eb; text-align: center; }
+.auth-alt .muted { display: block; margin-bottom: 2px; }
+.auth-alt .btn.block { margin-top: 10px; }
+
+/* hub account bar */
+.account-bar { display: flex; gap: 10px; justify-content: flex-end; align-items: center; padding: 10px 20px; background: #0f2a4a; color: #cbd5e1; font-size: 14px; }
+.account-name { font-weight: 600; color: #fff; }
+
+/* "← Menu" links in the blue banners become a visible pill */
+.light-link { display: inline-block; padding: 6px 14px; border: 1px solid #7dd3fc99; border-radius: 999px; background: #ffffff1f; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; }
+.light-link:hover { background: #ffffff38; border-color: #7dd3fc; }
+
+/* ---------- brand header (auth / entry pages) ---------- */
+.app-header {
+  background: #0f2a4a;
+  color: #fff;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-brand {
+  color: #fff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 15px;
+}
+.app-brand:hover { color: #fff; }
+
+.app-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #38bdf8;
+  color: #0f2a4a;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.app-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.app-brand-text strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+.app-brand-text small {
+  font-size: 12px;
+  color: #7dd3fc;
+  letter-spacing: .05em;
+  font-weight: 500;
+}
+
+/* the outer wrapper for entry pages: header + centered content */
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.auth-shell .center-page {
+  min-height: 0;
+  flex: 1;
+}
