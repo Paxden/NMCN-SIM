@@ -1991,3 +1991,60 @@ body.task-open .sim { right: 356px; }
     grid-template-columns: 1fr;
   }
 }
+
+/* OSCE dashboard: exactly 3 component cards per row */
+.comp-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .comp-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .comp-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat.stat-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--brand-soft, #e4f1e1);
+  color: var(--brand-dark, #1e4d2b);
+  flex-shrink: 0;
+}
+
+.stat-with-icon .stat-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.stat-with-icon .stat-label {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-with-icon .stat-num {
+  font-size: 26px;
+  line-height: 1.1;
+}

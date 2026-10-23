@@ -89,6 +89,45 @@ export function AppHeader() {
 // menu.jsx already imports AccountBar, so the hub gets the header without editing menu.jsx.
 export const AccountBar = AppHeader;
 
+/* ---------- stat card icons ---------- */
+const IconUsers = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+const IconClock = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+const IconBook = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+);
+const IconRefresh = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 4 23 10 17 10" />
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+  </svg>
+);
+const IconCheckCircle = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
+
 /* ---------- /login (sign in and create account) ---------- */
 export function LoginPage() {
   const { login, register } = useAuth();
@@ -304,23 +343,24 @@ export function DashboardPage() {
       </header>
       <div className="report">
         {msg && <div className="note">{msg}</div>}
-        {counts && (
-          <div className="stats">
-            {[
-              ["total", "Managers"],
-              ["not_started", "Not started"],
-              ["in_training", "In training"],
-              ["needs_retake", "Need retake"],
-              ["competent", "Competent"],
-              ["assigned", "Assigned to centre"],
-            ].map(([k, l]) => (
-              <div className="stat" key={k}>
-                <div className="stat-label">{l}</div>
-                <div className="stat-num">{counts[k]}</div>
-              </div>
-            ))}
-          </div>
-        )}
+       {counts && (
+  <div className="stats">
+    {[
+      ["total", "Managers", <IconUsers />],
+      ["not_started", "Not started", <IconClock />],
+      ["needs_retake", "Need retake", <IconRefresh />],
+      ["competent", "Competent", <IconCheckCircle />],
+    ].map(([k, l, icon]) => (
+      <div className="stat stat-with-icon" key={k}>
+        <div className="stat-icon">{icon}</div>
+        <div className="stat-main">
+          <div className="stat-label">{l}</div>
+          <div className="stat-num">{counts[k]}</div>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
         <section className="card table-wrap">
           <div className="row-gap wrap" style={{ marginBottom: 12 }}>
             {[
