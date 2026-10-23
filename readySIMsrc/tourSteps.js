@@ -13,14 +13,14 @@ export const TOUR_STEPS = [
     stage: "start",
     target: "create-form",
     title: "1. Create the server",
-    text: "On the exam machine, open localhost:5000/createserver. Choose a Server ID and a password and remember them, because you will log in with the same credentials.",
+    text: "On the exam machine, open localhost:4001/createserver. Choose a Server ID and a password and remember them, because you will log in with the same credentials.",
   },
   {
     route: "/createserver",
     stage: "start",
     target: "create-btn",
     title: "Click Create",
-    text: "Click Create to set up the server. Next, open localhost:5000/admin.",
+    text: "Click Create to set up the server. Next, open localhost:4001/admin.",
   },
   {
     route: "/admin",

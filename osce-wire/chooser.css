@@ -1,0 +1,15 @@
+.mod-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; background: #f1f5f9; }
+.mod-wrap { width: 100%; max-width: 860px; }
+.mod-wrap h1 { margin: 0 0 6px; font-size: 28px; }
+.mod-wrap > p { margin: 0 0 24px; color: #64748b; }
+.mod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.mod-card { display: flex; flex-direction: column; gap: 10px; text-align: left; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; cursor: pointer; font: inherit; color: inherit; transition: box-shadow .15s, border-color .15s, transform .15s; }
+.mod-card:hover, .mod-card:focus-visible { border-color: #2563eb; box-shadow: 0 6px 20px rgba(37, 99, 235, .15); transform: translateY(-2px); outline: none; }
+.mod-tag { align-self: flex-start; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; background: #dbeafe; color: #1e40af; }
+.mod-card.osce .mod-tag { background: #dcfce7; color: #166534; }
+.mod-card h2 { margin: 0; font-size: 21px; }
+.mod-card p { margin: 0; color: #475569; line-height: 1.5; }
+.mod-card ul { margin: 0; padding-left: 18px; color: #475569; font-size: 14px; line-height: 1.6; }
+.mod-go { margin-top: auto; padding-top: 6px; font-weight: 600; color: #2563eb; }
+.mod-switch { position: fixed; left: 14px; bottom: 14px; z-index: 40; background: #0f172a; color: #fff; border-radius: 999px; padding: 8px 14px; font-size: 13px; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.mod-switch:hover { background: #1e293b; }

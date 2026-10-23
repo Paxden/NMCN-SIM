@@ -1191,34 +1191,104 @@ body.task-open .toast {
   color: #cbd5e1;
 }
 
-.inline-form.stacked { flex-direction: column; align-items: flex-start; }
+.inline-form.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+}
 
 /* Append to the bottom of src/styles.css (replaces the earlier .account-bar block) */
 
 /* any <a className="btn ..."> should look like a button, not a link */
-a.btn { display: inline-block; text-decoration: none; text-align: center; }
-a.btn-primary, a.btn-primary:hover { color: #fff; }
-a.btn-light, a.btn-light:hover { color: #111827; }
-a.btn.block { display: block; }
-.btn-primary:hover:not(:disabled) { background: #1e40af; }
-.btn-light:hover:not(:disabled) { background: #d1d5db; }
+a.btn {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+a.btn-primary,
+a.btn-primary:hover {
+  color: #fff;
+}
+
+a.btn-light,
+a.btn-light:hover {
+  color: #111827;
+}
+
+a.btn.block {
+  display: block;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1e40af;
+}
+
+.btn-light:hover:not(:disabled) {
+  background: #d1d5db;
+}
 
 /* outlined button for secondary actions */
-.btn-outline { background: #fff; color: #1d4ed8; border: 2px solid #1d4ed8; }
-.btn-outline:hover:not(:disabled) { background: #eff6ff; }
+.btn-outline {
+  background: #fff;
+  color: #1d4ed8;
+  border: 2px solid #1d4ed8;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: #eff6ff;
+}
 
 /* login page: alternative actions under the main button */
-.auth-alt { margin-top: 18px; padding-top: 14px; border-top: 1px solid #e5e7eb; text-align: center; }
-.auth-alt .muted { display: block; margin-bottom: 2px; }
-.auth-alt .btn.block { margin-top: 10px; }
+.auth-alt {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.auth-alt .muted {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.auth-alt .btn.block {
+  margin-top: 10px;
+}
 
 /* hub account bar */
-.account-bar { display: flex; gap: 10px; justify-content: flex-end; align-items: center; padding: 10px 20px; background: #0f2a4a; color: #cbd5e1; font-size: 14px; }
-.account-name { font-weight: 600; color: #fff; }
+.account-bar {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 10px 20px;
+  background: #0f2a4a;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.account-name {
+  font-weight: 600;
+  color: #fff;
+}
 
 /* "← Menu" links in the blue banners become a visible pill */
-.light-link { display: inline-block; padding: 6px 14px; border: 1px solid #7dd3fc99; border-radius: 999px; background: #ffffff1f; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; }
-.light-link:hover { background: #ffffff38; border-color: #7dd3fc; }
+.light-link {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid #7dd3fc99;
+  border-radius: 999px;
+  background: #ffffff1f;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.light-link:hover {
+  background: #ffffff38;
+  border-color: #7dd3fc;
+}
 
 /* ---------- brand header (auth / entry pages) ---------- */
 .app-header {
@@ -1239,7 +1309,10 @@ a.btn.block { display: block; }
   font-weight: 700;
   font-size: 15px;
 }
-.app-brand:hover { color: #fff; }
+
+.app-brand:hover {
+  color: #fff;
+}
 
 .app-brand-mark {
   width: 32px;
@@ -1259,11 +1332,13 @@ a.btn.block { display: block; }
   flex-direction: column;
   line-height: 1.2;
 }
+
 .app-brand-text strong {
   font-size: 15px;
   font-weight: 700;
   color: #fff;
 }
+
 .app-brand-text small {
   font-size: 12px;
   color: #7dd3fc;
@@ -1277,7 +1352,642 @@ a.btn.block { display: block; }
   display: flex;
   flex-direction: column;
 }
+
 .auth-shell .center-page {
   min-height: 0;
   flex: 1;
+}
+
+
+/* ==========================================================================
+   Brand layer. In src/styles.css, delete EVERYTHING after the
+   "@media (max-width: 600px) { .bar-row ... }" block (all earlier appended
+   blocks), then paste this file in its place.
+   Brand colour: #B1D9AD (from the logo). Dark green is derived from it for text and buttons.
+   ========================================================================== */
+
+:root {
+  --brand: #b1d9ad;
+  --brand-soft: #e4f1e1;
+  --brand-dark: #1e4d2b;
+  --brand-darker: #163b21;
+  --line: #dde5da;
+}
+
+.boot {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: #6b7280;
+}
+
+/* <a className="btn ..."> should look like a button, not a link */
+a.btn {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+a.btn-primary,
+a.btn-primary:hover {
+  color: #fff;
+}
+
+a.btn-light,
+a.btn-light:hover {
+  color: #111827;
+}
+
+a.btn.block {
+  display: block;
+}
+
+.btn-light:hover:not(:disabled) {
+  background: #d1d5db;
+}
+
+.inline-form.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* logo */
+.logo-img {
+  display: block;
+  object-fit: contain;
+}
+
+.app-logo {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--brand-dark);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ---------- brand theme for the entry pages (login, hub, dashboard) ---------- */
+.hub .btn-primary,
+.auth-split .btn-primary,
+.app-header .btn-primary {
+  background: var(--brand-dark);
+  color: #fff;
+}
+
+.hub .btn-primary:hover:not(:disabled),
+.auth-split .btn-primary:hover:not(:disabled),
+.app-header .btn-primary:hover:not(:disabled) {
+  background: var(--brand-darker);
+}
+
+.hub .hub-num {
+  background: var(--brand-dark);
+}
+
+.hub .stat {
+  border-left-color: var(--brand-dark);
+}
+
+/* header: plain white bar */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 60px;
+  padding: 10px 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--brand-dark);
+}
+
+.app-name {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.account-name {
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.center-page.with-header {
+  min-height: calc(100vh - 60px);
+}
+
+/* hub and dashboard banner: soft green instead of navy */
+.hub-hero {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  border-bottom: 1px solid var(--line);
+}
+
+.hub-hero h1 {
+  color: var(--brand-dark);
+}
+
+.hub-hero p {
+  color: #44614b;
+}
+
+.light-link {
+  display: inline-block;
+  padding: 5px 14px;
+  border: 1px solid #1e4d2b55;
+  border-radius: 999px;
+  background: #ffffffb3;
+  color: var(--brand-dark);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.light-link:hover {
+  background: #fff;
+  border-color: var(--brand-dark);
+}
+
+/* ---------- login / sign-up ---------- */
+.auth-split {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 5fr 6fr;
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 44px 56px;
+  background: var(--brand);
+  color: var(--brand-dark);
+}
+
+.auth-brand-text {
+  max-width: 400px;
+}
+
+.auth-brand h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.auth-brand p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.55;
+  color: #2f5a3a;
+}
+
+.auth-brand .auth-org {
+  font-size: 13px;
+  color: #3f6a49;
+}
+
+.auth-panel {
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: #f6f8f5;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 28px;
+}
+
+.auth-card h2 {
+  margin: 24px 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.auth-card label {
+  display: block;
+  margin: 16px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.auth-card input {
+  height: 42px;
+  border: 1px solid #c9d4c6;
+  border-radius: 8px;
+  padding: 0 12px;
+}
+
+.auth-card input:focus {
+  border-color: var(--brand-dark);
+  outline: 3px solid #b1d9ad99;
+}
+
+.auth-card .btn {
+  height: 44px;
+  border-radius: 8px;
+}
+
+.auth-card .btn.block {
+  margin-top: 22px;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.auth-tabs button {
+  margin-bottom: -1px;
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.auth-tabs button:hover {
+  color: var(--brand-dark);
+}
+
+.auth-tabs button.on {
+  color: var(--brand-dark);
+  border-bottom-color: var(--brand-dark);
+}
+
+.auth-alt {
+  margin-top: 14px;
+}
+
+.auth-alt .btn.block {
+  margin-top: 0;
+}
+
+@media (max-width: 860px) {
+  .auth-split {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+
+  .auth-brand .logo-img,
+  .auth-brand .app-logo {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 22px !important;
+  }
+
+  .auth-brand h1 {
+    margin: 0;
+    font-size: 19px;
+  }
+
+  .auth-brand p {
+    display: none;
+  }
+
+  .auth-panel {
+    align-items: start;
+    padding-top: 24px;
+  }
+}
+
+/* CAOSCE server simulation. Append to the very end of src/styles.css (after styles-additions.css). */
+
+.osce-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.osce-side {
+  background: #0f2a4a;
+  color: #cbd5e1;
+  padding: 16px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+}
+
+.osce-side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #ffffff22;
+}
+
+.osce-side-brand strong {
+  display: block;
+  color: #fff;
+  font-size: 16px;
+}
+
+.osce-side-brand span {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.osce-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 11px 18px;
+  color: #cbd5e1;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  border-left: 3px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.osce-nav:hover {
+  background: #ffffff14;
+  color: #fff;
+}
+
+.osce-nav.active {
+  color: #fff;
+  background: #ffffff1a;
+  border-left-color: #38bdf8;
+}
+
+.osce-nav.sub {
+  padding-left: 34px;
+  font-weight: 500;
+}
+
+.osce-nav .chev {
+  transition: transform .15s;
+}
+
+.osce-nav .chev.open {
+  transform: rotate(180deg);
+}
+
+.osce-main {
+  padding: 24px;
+  max-width: 1100px;
+  width: 100%;
+}
+
+.osce-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.osce-top h2 {
+  margin: 0;
+}
+
+.comp-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+}
+
+.comp-card {
+  text-align: center;
+  margin: 0;
+}
+
+.comp-title {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.comp-day {
+  font-size: 13px;
+}
+
+.comp-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+.stack-form label {
+  display: block;
+  margin: 12px 0 4px;
+  font-weight: 600;
+}
+
+.sel {
+  padding: 7px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 14px;
+  max-width: 280px;
+  width: 100%;
+}
+
+.prog-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.prog-row:hover {
+  border-color: #1d4ed8;
+  box-shadow: 0 1px 6px #0001;
+}
+
+.prog-name {
+  font-weight: 700;
+}
+
+.prog-go {
+  font-size: 20px;
+  color: #6b7280;
+}
+
+.stn-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.stn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d1d5db;
+  color: #4b5563;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  flex: none;
+}
+
+.stn.done {
+  background: #15803d;
+  color: #fff;
+}
+
+.stn-arrow {
+  color: #9ca3af;
+  margin: 0 5px;
+}
+
+.upload-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 26px 30px;
+  background: #15803d;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.upload-bar:hover {
+  background: #166534;
+}
+
+.upload-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.upload-text {
+  margin-top: 4px;
+  opacity: .9;
+}
+
+.station-wrap {
+  min-height: 100vh;
+  padding: 20px;
+  background: #f1f4f8;
+}
+
+.station-top {
+  max-width: 760px;
+  margin: 0 auto 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.browser {
+  max-width: 760px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.browser-bar {
+  background: #e5e7eb;
+  padding: 9px 14px;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  color: #374151;
+}
+
+.browser-body {
+  padding: 30px;
+  max-width: 420px;
+}
+
+@media (max-width: 860px) {
+  .osce-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .osce-side {
+    position: static;
+    height: auto;
+  }
+
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* CAOSCE trainer */
+body.task-open .sim { right: 356px; }
+
+@media (max-width: 900px) {
+  body.task-open .sim { right: 16px; bottom: calc(46vh + 16px); }
+}
+
+/* hub: force exactly two cards per row (4 cards → 2 × 2 grid) */
+.hub-grid {
+  max-width: 960px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* single column on phones */
+@media (max-width: 700px) {
+  .hub-grid {
+    grid-template-columns: 1fr;
+  }
 }

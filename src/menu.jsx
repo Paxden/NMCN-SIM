@@ -17,7 +17,7 @@ export function Hub() {
     <div className="hub">
       <AccountBar />
       <header className="hub-hero">
-        <h1>CBT Admin Trainer</h1>
+        <h1>CBT Server Trainer</h1>
         <p>Learn the exam server, practise freely, then prove it with real tasks.</p>
       </header>
 
