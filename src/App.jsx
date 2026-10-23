@@ -28,14 +28,29 @@ function Routes() {
 
   useEffect(() => {
     if (!ready) return;
+
+    // Not signed in → login is the only page allowed.
+    if (!user) {
+      if (path !== "/login") navigate("/login");
+      return;
+    }
+
     // A signed-in NMCN admin only ever sees the dashboard, never the simulation.
     if (isAdmin) {
       if (path !== "/dashboard") navigate("/dashboard");
       return;
     }
+
+    // Signed-in managers should not sit on the login page.
+    if (path === "/login") {
+      navigate("/choose");
+      return;
+    }
+
     if (!known) return navigate("/");
+
     // After signing in, a manager first chooses CBT or CAOSCE.
-    if (user && path === "/" && !hasChosen(user)) navigate("/choose");
+    if (path === "/" && !hasChosen(user)) navigate("/choose");
   }, [ready, isAdmin, user, path, known]);
 
   // Opening /createserver or /admin directly behaves like free play.
@@ -45,6 +60,8 @@ function Routes() {
 
   // Wait for the stored sign-in to be checked, so an admin never sees a flash of the trainer.
   if (!ready) return <div className="boot">Loading...</div>;
+  // Signed out: render nothing except the login page (the effect above navigates).
+  if (!user && path !== "/login") return null;
   if (isAdmin && path !== "/dashboard") return null;
 
   let page = null;

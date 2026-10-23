@@ -42,10 +42,10 @@ export function AppHeader() {
   const { user, logout } = useAuth();
 
   const signOut = () => {
-  forgetChoice();
-  logout();
-  navigate("/login");
-};
+    forgetChoice();
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="app-header">
@@ -62,11 +62,9 @@ export function AppHeader() {
           <>
             <span className="account-name">
               {user.name}
-              {user.role === "admin"
-                ? " · Admin"
-                : user.competent
-                  ? " · Competent"
-                  : ""}
+              {user.role === "admin" && " · Admin"}
+              {user.role !== "admin" && user.competent && " · CBT ✓"}
+              {user.role !== "admin" && user.osce?.competent && " · CAOSCE ✓"}
             </span>
             <button
               type="button"
@@ -91,8 +89,16 @@ export const AccountBar = AppHeader;
 
 /* ---------- stat card icons ---------- */
 const IconUsers = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
     <circle cx="9" cy="7" r="4" />
     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -100,29 +106,61 @@ const IconUsers = () => (
   </svg>
 );
 const IconClock = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <circle cx="12" cy="12" r="10" />
     <polyline points="12 6 12 12 16 14" />
   </svg>
 );
 const IconBook = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
   </svg>
 );
 const IconRefresh = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="23 4 23 10 17 10" />
     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
   </svg>
 );
 const IconCheckCircle = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
     <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
@@ -264,9 +302,13 @@ export function LoginPage() {
           </button>
 
           <div className="auth-alt">
-            <Link to="/" className="btn btn-light block">
+            <button
+              type="button"
+              className="btn btn-light block"
+              onClick={() => navigate("/")}
+            >
               Continue without signing in
-            </Link>
+            </button>
           </div>
         </form>
       </main>
@@ -282,26 +324,66 @@ const STATUS = {
   not_started: ["Not started", "badge-gray"],
 };
 
+const LEVEL_BADGE = {
+  "Highly Competent": "badge-green",
+  Competent: "badge-green",
+  "Requires Remediation": "badge-red",
+  "Not Competent": "badge-red",
+};
+
+// Map module → summary keys and per-row field accessors.
+const MODULE = {
+  cbt: {
+    label: "CBT",
+    summaryKeys: {
+      total: "total",
+      not_started: "not_started",
+      needs_retake: "needs_retake",
+      competent: "competent",
+    },
+    statusOf: (m) => m.status,
+    bestOf: (m) => m.bestOverall,
+    attemptsOf: (m) => m.attemptCount,
+  },
+  osce: {
+    label: "CAOSCE",
+    summaryKeys: {
+      total: "total",
+      not_started: "osce_not_started",
+      needs_retake: "osce_needs_retake",
+      competent: "osce_competent",
+    },
+    statusOf: (m) => m.osceStatus,
+    bestOf: (m) => m.osce?.bestOverall,
+    attemptsOf: (m) => m.osce?.attemptCount ?? 0,
+  },
+};
+
 export function DashboardPage() {
   const { user, ready } = useAuth();
+  const [kind, setKind] = useState("cbt"); // "cbt" | "osce"
   const [counts, setCounts] = useState(null);
   const [rows, setRows] = useState([]);
   const [filter, setFilter] = useState("");
-  const [open, setOpen] = useState(null); // { manager, attempts }
+  const [open, setOpen] = useState(null); // { manager, attempts, kind }
   const [msg, setMsg] = useState("");
 
-  const load = async (status = filter) => {
+  const load = async (status = filter, k = kind) => {
     try {
-      const [s, m] = await Promise.all([api.summary(), api.managers(status)]);
+      const [s, m] = await Promise.all([
+        api.summary(),
+        api.managers(status, k),
+      ]);
       setCounts(s.counts);
       setRows(m.managers);
+      setMsg("");
     } catch (e) {
       setMsg(e.message);
     }
   };
   useEffect(() => {
-    if (user?.role === "admin") load();
-  }, [user, filter]);
+    if (user?.role === "admin") load(filter, kind);
+  }, [user, filter, kind]);
 
   if (!ready) return null;
   if (!user || user.role !== "admin")
@@ -319,6 +401,8 @@ export function DashboardPage() {
       </>
     );
 
+  const mod = MODULE[kind];
+
   const assign = async (m, centre) => {
     try {
       await api.assign(m._id, centre);
@@ -328,39 +412,69 @@ export function DashboardPage() {
       setMsg(e.message);
     }
   };
-  const view = async (m) =>
-    setOpen({
-      manager: m,
-      attempts: (await api.managerAttempts(m._id)).attempts,
-    });
+
+  const view = async (m) => {
+    try {
+      const r =
+        kind === "osce"
+          ? await api.managerOsceAttempts(m._id)
+          : await api.managerAttempts(m._id);
+      setOpen({ manager: m, attempts: r.attempts, kind });
+    } catch (e) {
+      setMsg(e.message);
+    }
+  };
+
+  const switchKind = (k) => {
+    setKind(k);
+    setFilter("");
+  };
 
   return (
     <div className="hub">
       <AppHeader />
       <header className="hub-hero small">
         <h1>Admin dashboard</h1>
-        <p>Who has started, who is competent, who needs a retake.</p>
+        <p>
+          Who has started, who is competent, who needs a retake — per module.
+        </p>
       </header>
+
       <div className="report">
         {msg && <div className="note">{msg}</div>}
-       {counts && (
-  <div className="stats">
-    {[
-      ["total", "Managers", <IconUsers />],
-      ["not_started", "Not started", <IconClock />],
-      ["needs_retake", "Need retake", <IconRefresh />],
-      ["competent", "Competent", <IconCheckCircle />],
-    ].map(([k, l, icon]) => (
-      <div className="stat stat-with-icon" key={k}>
-        <div className="stat-icon">{icon}</div>
-        <div className="stat-main">
-          <div className="stat-label">{l}</div>
-          <div className="stat-num">{counts[k]}</div>
+
+        {/* module toggle */}
+        <div className="row-gap wrap" style={{ marginBottom: 16 }}>
+          {["cbt", "osce"].map((k) => (
+            <button
+              key={k}
+              className={`btn btn-sm ${kind === k ? "btn-primary" : "btn-light"}`}
+              onClick={() => switchKind(k)}
+            >
+              {MODULE[k].label}
+            </button>
+          ))}
         </div>
-      </div>
-    ))}
-  </div>
-)}
+
+        {counts && (
+          <div className="stats">
+            {[
+              ["total", "Managers", <IconUsers />],
+              [mod.summaryKeys.not_started, "Not started", <IconClock />],
+              [mod.summaryKeys.needs_retake, "Need retake", <IconRefresh />],
+              [mod.summaryKeys.competent, "Competent", <IconCheckCircle />],
+            ].map(([k, l, icon]) => (
+              <div className="stat stat-with-icon" key={k}>
+                <div className="stat-icon">{icon}</div>
+                <div className="stat-main">
+                  <div className="stat-label">{l}</div>
+                  <div className="stat-num">{counts[k] ?? 0}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <section className="card table-wrap">
           <div className="row-gap wrap" style={{ marginBottom: 12 }}>
             {[
@@ -384,9 +498,9 @@ export function DashboardPage() {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Status</th>
-                <th>Best</th>
-                <th>Attempts</th>
+                <th>{mod.label} status</th>
+                <th>{mod.label} best</th>
+                <th>{mod.label} attempts</th>
                 <th>Centre</th>
                 <th></th>
               </tr>
@@ -399,43 +513,62 @@ export function DashboardPage() {
                   </td>
                 </tr>
               )}
-              {rows.map((m) => (
-                <tr key={m._id}>
-                  <td>{m.name}</td>
-                  <td>{m.email}</td>
-                  <td>
-                    <span className={`badge ${STATUS[m.status][1]}`}>
-                      {STATUS[m.status][0]}
-                    </span>
-                  </td>
-                  <td className="num">
-                    {m.bestOverall == null ? "-" : `${m.bestOverall}%`}
-                  </td>
-                  <td className="num">{m.attemptCount}</td>
-                  <td>
-                    <input
-                      style={{ width: 150 }}
-                      defaultValue={m.centre}
-                      placeholder={m.competent ? "Centre" : "Not eligible"}
-                      disabled={!m.competent}
-                      onBlur={(e) =>
-                        e.target.value !== m.centre && assign(m, e.target.value)
-                      }
-                    />
-                  </td>
-                  <td>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => view(m)}
-                    >
-                      Attempts
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((m) => {
+                const st = mod.statusOf(m) || "not_started";
+                const best = mod.bestOf(m);
+                const other = kind === "osce" ? m.cbtStatus : m.osceStatus;
+                const otherLabel = kind === "osce" ? "CBT" : "CAOSCE";
+                return (
+                  <tr key={m._id}>
+                    <td>{m.name}</td>
+                    <td>{m.email}</td>
+                    <td>
+                      <span
+                        className={`badge ${STATUS[st]?.[1] || "badge-gray"}`}
+                        title={`${otherLabel}: ${STATUS[other]?.[0] || "Not started"}`}
+                      >
+                        {STATUS[st]?.[0] || "Not started"}
+                      </span>
+                    </td>
+                    <td className="num">{best == null ? "-" : `${best}%`}</td>
+                    <td className="num">{mod.attemptsOf(m)}</td>
+                    <td>
+                      <input
+                        style={{ width: 150 }}
+                        defaultValue={m.centre}
+                        placeholder={m.competent ? "Centre" : "Not eligible"}
+                        disabled={!m.competent}
+                        title={
+                          m.competent
+                            ? "Centre assignment is allowed once CBT is passed"
+                            : "CBT must be passed before a centre can be assigned"
+                        }
+                        onBlur={(e) =>
+                          e.target.value !== m.centre &&
+                          assign(m, e.target.value)
+                        }
+                      />
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => view(m)}
+                      >
+                        Attempts
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
+            Centre is gated on CBT competency. Use the{" "}
+            <strong>CBT / CAOSCE</strong> toggle above to see each module's
+            status, best score and attempts.
+          </p>
         </section>
+
         {open && (
           <div className="overlay" onClick={() => setOpen(null)}>
             <div
@@ -443,7 +576,9 @@ export function DashboardPage() {
               style={{ maxWidth: 560 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3>{open.manager.name}: attempts</h3>
+              <h3>
+                {open.manager.name}: {MODULE[open.kind].label} attempts
+              </h3>
               {open.attempts.length === 0 ? (
                 <p className="muted">No submitted attempts.</p>
               ) : (
@@ -460,7 +595,15 @@ export function DashboardPage() {
                       <tr key={a._id}>
                         <td>{new Date(a.finishedAt).toLocaleString()}</td>
                         <td className="num">{a.overall}%</td>
-                        <td>{a.level}</td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              LEVEL_BADGE[a.level] || "badge-gray"
+                            }`}
+                          >
+                            {a.level}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

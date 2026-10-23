@@ -2,7 +2,8 @@ const BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
 const TK = "cbt-trainer-token";
 
 export const getToken = () => localStorage.getItem(TK);
-export const setToken = (t) => (t ? localStorage.setItem(TK, t) : localStorage.removeItem(TK));
+export const setToken = (t) =>
+  t ? localStorage.setItem(TK, t) : localStorage.removeItem(TK);
 export const hasToken = () => !!getToken();
 
 async function call(method, path, body) {
@@ -10,7 +11,10 @@ async function call(method, path, body) {
   try {
     res = await fetch(`${BASE}/api${path}`, {
       method,
-      headers: { "Content-Type": "application/json", ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -29,12 +33,30 @@ export const api = {
   login: (b) => call("POST", "/auth/login", b),
   me: () => call("GET", "/auth/me"),
   saveProgress: (b) => call("PUT", "/auth/progress", b),
+
   startAttempt: () => call("POST", "/attempts"),
-  submitAttempt: (id, tasks) => call("POST", `/attempts/${id}/submit`, { tasks }),
+  submitAttempt: (id, tasks) =>
+    call("POST", `/attempts/${id}/submit`, { tasks }),
   myAttempts: () => call("GET", "/attempts/mine"),
+
+  // CAOSCE
+  startOsceAttempt: () => call("POST", "/osce"),
+  submitOsceAttempt: (id, tasks) =>
+    call("POST", `/osce/${id}/submit`, { tasks }),
+  myOsceAttempts: () => call("GET", "/osce/mine"),
+  saveOsceProgress: (b) => call("PUT", "/auth/progress/osce", b),
+
+  // Admin
   summary: () => call("GET", "/admin/summary"),
-  managers: (status) => call("GET", `/admin/managers${status ? `?status=${status}` : ""}`),
+  managers: (status, kind) =>
+    call(
+      "GET",
+      `/admin/managers${status ? `?status=${status}` : ""}${kind ? `${status ? "&" : "?"}kind=${kind}` : ""}`,
+    ),
   managerAttempts: (id) => call("GET", `/admin/managers/${id}/attempts`),
-  assign: (id, centre) => call("PATCH", `/admin/managers/${id}/assignment`, { centre }),
+  managerOsceAttempts: (id) =>
+    call("GET", `/admin/managers/${id}/osce-attempts`),
+  assign: (id, centre) =>
+    call("PATCH", `/admin/managers/${id}/assignment`, { centre }),
   createUser: (b) => call("POST", "/admin/users", b),
 };

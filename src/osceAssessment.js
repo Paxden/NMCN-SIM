@@ -1,8 +1,24 @@
 // CAOSCE assessment: six timed situations, no hints, details change on every attempt.
-import { ALL_PROCEDURES, COMPONENTS, PROCEDURE_PORT, QUESTION_PORT } from "./osceData";
-import { EXAMINERS, PENDING_IPS, activated, comps, finishedCandidates } from "./osceScenarios";
+// Seed-driven: both client and server derive the same tasks from the same seed.
+import {
+  ALL_PROCEDURES,
+  COMPONENTS,
+  PROCEDURE_PORT,
+  QUESTION_PORT,
+} from "./osceData";
+import {
+  PENDING_IPS,
+  activated,
+  comps,
+  finishedCandidates,
+} from "./osceScenarios";
 
-export const OSCE_STANDARD = { highly: 85, competent: 70, remediation: 50, taskPass: 60 };
+export const OSCE_STANDARD = {
+  highly: 85,
+  competent: 70,
+  remediation: 50,
+  taskPass: 60,
+};
 export const AREAS = [
   "Server setup",
   "Exam control",
@@ -11,21 +27,49 @@ export const AREAS = [
   "Results and upload",
 ];
 
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const pickN = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+// Deterministic RNG (mulberry32). Must match the server's shared/osceAssessment.js.
+const rng = (seed) => {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+};
+const pick = (arr, r) => arr[Math.floor(r() * arr.length)];
+const shuffle = (arr, r) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+const pickN = (arr, n, r) => shuffle(arr, r).slice(0, n);
 const findEx = (s, u) => s.examiners.find((e) => e.username === u);
 
+// Same POOL as the server. Must stay identical or seed rebuild diverges.
 const POOL = [
-  { fullName: "Mrs Adaeze Nwankwo", username: "anwankwo", password: "adaeze2026" },
+  {
+    fullName: "Mrs Adaeze Nwankwo",
+    username: "anwankwo",
+    password: "adaeze2026",
+  },
   { fullName: "Mr Tunde Balogun", username: "tbalogun", password: "tunde2026" },
   { fullName: "Dr Hauwa Danjuma", username: "hdanjuma", password: "hauwa2026" },
-  { fullName: "Mrs Funke Adeyemi", username: "fadeyemi", password: "funke2026" },
+  {
+    fullName: "Mrs Funke Adeyemi",
+    username: "fadeyemi",
+    password: "funke2026",
+  },
   { fullName: "Mr Emeka Umeh", username: "eumeh", password: "emeka2026" },
   { fullName: "Mrs Zainab Lawal", username: "zlawal", password: "zainab2026" },
 ];
+const STATION_EXAMINER = POOL[0];
 
-const taskSetup = () => {
-  const offline = Math.random() < 0.5;
+const taskSetup = (r) => {
+  const offline = r() < 0.5;
   return {
     id: "setup",
     practise: "setup-exam",
@@ -40,8 +84,12 @@ const taskSetup = () => {
   };
 };
 
-const taskDayOne = () => {
-  const [a, b] = pickN(COMPONENTS.filter((c) => c.key !== "osce"), 2);
+const taskDayOne = (r) => {
+  const [a, b] = pickN(
+    COMPONENTS.filter((c) => c.key !== "osce"),
+    2,
+    r,
+  );
   return {
     id: "dayone",
     practise: "day-one",
@@ -51,13 +99,16 @@ const taskDayOne = () => {
     limit: 150,
     situation: `It is Day 1. Start ${a.label} and ${b.label}. ${a.label} has now finished, so end it.`,
     state: () => activated(),
-    checks: [(s) => s.components[a.key] === "ended", (s) => s.components[b.key] === "started"],
+    checks: [
+      (s) => s.components[a.key] === "ended",
+      (s) => s.components[b.key] === "started",
+    ],
   };
 };
 
-const taskExaminers = () => {
-  const [a, b] = pickN(POOL, 2);
-  const [pa, pb] = pickN(ALL_PROCEDURES, 2);
+const taskExaminers = (r) => {
+  const [a, b] = pickN(POOL, 2, r);
+  const [pa, pb] = pickN(ALL_PROCEDURES, 2, r);
   return {
     id: "examiners",
     practise: "assign-lead",
@@ -77,8 +128,8 @@ const taskExaminers = () => {
   };
 };
 
-const taskWhitelist = () => {
-  const port = pick([PROCEDURE_PORT, QUESTION_PORT]);
+const taskWhitelist = (r) => {
+  const port = pick([PROCEDURE_PORT, QUESTION_PORT], r);
   const kind = port === PROCEDURE_PORT ? "procedure" : "question";
   return {
     id: "whitelist",
@@ -96,24 +147,31 @@ const taskWhitelist = () => {
   };
 };
 
-const taskStation = () => {
-  const proc = Math.random() < 0.5;
+const taskStation = (r) => {
+  const proc = r() < 0.5;
   const port = proc ? PROCEDURE_PORT : QUESTION_PORT;
-  const exm = EXAMINERS[0];
-  const cand = `NSG26${String(1 + Math.floor(Math.random() * 24)).padStart(3, "0")}`;
-  const event = proc ? `examiner-login:${exm.username}` : `candidate-login:${cand}`;
+  const exm = STATION_EXAMINER;
+  const cand = `NSG26${String(1 + Math.floor(r() * 24)).padStart(3, "0")}`;
+  const event = proc
+    ? `examiner-login:${exm.username}`
+    : `candidate-login:${cand}`;
   return {
     id: "station",
     practise: "register-stations",
     area: "Network and whitelist",
-    title: proc ? "Bring a procedure station online" : "Bring a question station online",
+    title: proc
+      ? "Bring a procedure station online"
+      : "Bring a question station online",
     mustPass: false,
     limit: 240,
     situation: proc
       ? `The OSCE is running. A new procedure station laptop (port ${port}) is on the hall wifi but the server does not know it yet. Get it registered and cleared, then sign in ${exm.fullName} (username ${exm.username}, password ${exm.password}) on it.`
       : `The OSCE is running. A new question station laptop (port ${port}) is on the hall wifi but the server does not know it yet. Get it registered and cleared, then sign in candidate ${cand} on it.`,
     state: () =>
-      activated({ components: comps({ osce: "started" }), examiners: [{ ...exm }] }),
+      activated({
+        components: comps({ osce: "started" }),
+        examiners: [{ ...exm }],
+      }),
     checks: [
       (s) => s.ips.some((i) => i.primary && i.port === port),
       (s) => s.ips.some((i) => i.primary && i.port === port && i.approved),
@@ -122,8 +180,8 @@ const taskStation = () => {
   };
 };
 
-const taskClose = () => {
-  const offline = Math.random() < 0.5;
+const taskClose = (r) => {
+  const offline = r() < 0.5;
   return {
     id: "close",
     practise: "close-upload",
@@ -143,15 +201,25 @@ const taskClose = () => {
   };
 };
 
-export const buildAssessment = () => [
-  taskSetup(),
-  taskDayOne(),
-  taskExaminers(),
-  taskWhitelist(),
-  taskStation(),
-  taskClose(),
+const FACTORIES = [
+  taskSetup,
+  taskDayOne,
+  taskExaminers,
+  taskWhitelist,
+  taskStation,
+  taskClose,
 ];
-export const TASK_COUNT = 6;
+
+export const TASK_COUNT = FACTORIES.length;
+
+// Same task from the same seed on both client and server.
+export function buildTask(seed, index) {
+  return FACTORIES[index](rng(seed + index * 7919));
+}
+
+export function buildAssessment(seed) {
+  return FACTORIES.map((_, i) => buildTask(seed, i));
+}
 
 export function evaluateTask(task, s, mistakes) {
   const met = task.checks.filter((c) => {
@@ -162,21 +230,37 @@ export function evaluateTask(task, s, mistakes) {
     }
   }).length;
   const total = task.checks.length;
-  const score = Math.max(0, Math.round((met / total) * 100) - Math.min(25, mistakes * 5));
-  return { met, total, mistakes, score, passed: met === total && score >= OSCE_STANDARD.taskPass };
+  const score = Math.max(
+    0,
+    Math.round((met / total) * 100) - Math.min(25, mistakes * 5),
+  );
+  return {
+    met,
+    total,
+    mistakes,
+    score,
+    passed: met === total && score >= OSCE_STANDARD.taskPass,
+  };
 }
 
 export function buildRecord(name, tasks) {
-  const overall = Math.round(tasks.reduce((a, t) => a + t.score, 0) / tasks.length);
+  const overall = Math.round(
+    tasks.reduce((a, t) => a + t.score, 0) / tasks.length,
+  );
   const mustPassMet = tasks.filter((t) => t.mustPass).every((t) => t.passed);
   let level = "Not Competent";
-  if (mustPassMet && overall >= OSCE_STANDARD.highly) level = "Highly Competent";
-  else if (mustPassMet && overall >= OSCE_STANDARD.competent) level = "Competent";
+  if (mustPassMet && overall >= OSCE_STANDARD.highly)
+    level = "Highly Competent";
+  else if (mustPassMet && overall >= OSCE_STANDARD.competent)
+    level = "Competent";
   else if (overall >= OSCE_STANDARD.remediation) level = "Requires Remediation";
   const profile = AREAS.map((area) => {
     const list = tasks.filter((t) => t.area === area);
     if (!list.length) return null;
-    return { area, score: Math.round(list.reduce((a, t) => a + t.score, 0) / list.length) };
+    return {
+      area,
+      score: Math.round(list.reduce((a, t) => a + t.score, 0) / list.length),
+    };
   }).filter(Boolean);
   return {
     attemptId: `caosce-${Date.now()}`,

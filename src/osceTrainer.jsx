@@ -10,6 +10,7 @@ import { SwitchModule } from "./chooser";
 import { OSCE_EXERCISES } from "./osceExercises";
 import { OSCE_TOUR } from "./osceTourSteps";
 import { OSCE_STANDARD, TASK_COUNT, buildAssessment, evaluateTask, buildRecord } from "./osceAssessment";
+import { api, hasToken } from "./api";
 
 /* ---------- progress (kept in this browser) ---------- */
 
@@ -56,6 +57,22 @@ function usePath() {
 const Ctx = createContext(null);
 export const useTrainer = () => useContext(Ctx);
 
+// Snapshot of the sandbox state — the shape the server's evaluateTask consumes.
+const snapshotOf = (o) => ({
+  loggedIn: o.loggedIn,
+  online: o.online,
+  downloaded: o.downloaded,
+  activated: o.activated,
+  uploaded: o.uploaded,
+  components: o.components,
+  candidates: o.candidates,
+  examiners: o.examiners,
+  ips: o.ips,
+  syncCount: o.syncCount,
+  mistakes: o.mistakes || 0,
+  events: o.events,
+});
+
 function TrainerProvider({ children }) {
   const o = useOsce();
   const oref = useRef(o);
@@ -64,8 +81,8 @@ function TrainerProvider({ children }) {
   const [progress, setProgress] = useState(loadProgress);
   const [mode, setMode] = useState("free"); // free | tour | exercise | assessment
   const [tourStep, setTourStep] = useState(0);
-  const [ex, setEx] = useState(null); // { id, startedAt, result }
-  const [asmt, setAsmt] = useState(null); // { name, tasks, index, startedAt, results, phase, record }
+  const [ex, setEx] = useState(null);
+  const [asmt, setAsmt] = useState(null);
   const asmtRef = useRef(null);
   asmtRef.current = asmt;
 
@@ -76,6 +93,14 @@ function TrainerProvider({ children }) {
       /* ignore */
     }
   }, [progress]);
+
+  // Mirror tour/exercise progress to the server when signed in (same contract as CBT).
+  useEffect(() => {
+    if (!hasToken()) return;
+    api
+      .saveOsceProgress({ guideDone: progress.guideDone, exercises: progress.exercises })
+      .catch(() => {});
+  }, [progress.guideDone, progress.exercises]);
 
   /* free play and tour */
   const startFree = () => {
@@ -121,10 +146,31 @@ function TrainerProvider({ children }) {
   };
 
   /* assessment */
-  const startAssessment = (name) => {
-    const tasks = buildAssessment();
+  // Signed in: the server picks the seed. Signed out or unreachable: local fallback.
+  const startAssessment = async (name) => {
+    let remote = null;
+    if (hasToken()) {
+      try {
+        remote = await api.startOsceAttempt();
+      } catch {
+        /* fall through to local */
+      }
+    }
+    const seed = remote ? remote.seed : Math.floor(Math.random() * 2147483647);
+    const tasks = buildAssessment(seed);
     oref.current.applyScenario(tasks[0].state());
-    const a = { name, tasks, index: 0, startedAt: Date.now(), results: [], phase: "task", record: null };
+    const a = {
+      attemptId: remote ? remote.attemptId : `A-${Date.now().toString(36)}`,
+      name,
+      tasks,
+      seed,
+      remote: !!remote,
+      index: 0,
+      startedAt: Date.now(),
+      results: [],
+      phase: "task",
+      record: null,
+    };
     asmtRef.current = a;
     setAsmt(a);
     setMode("assessment");
@@ -138,10 +184,23 @@ function TrainerProvider({ children }) {
     const t = a.tasks[a.index];
     const ev = evaluateTask(t, cur, cur.mistakes || 0);
     const timeSec = Math.min(t.limit, Math.round((Date.now() - a.startedAt) / 1000));
+    const state = snapshotOf(cur);
+
     const results = [
       ...a.results,
-      { id: t.id, title: t.title, area: t.area, mustPass: t.mustPass, practise: t.practise, ...ev, timeSec, timedOut },
+      {
+        id: t.id,
+        title: t.title,
+        area: t.area,
+        mustPass: t.mustPass,
+        practise: t.practise,
+        ...ev,
+        timeSec,
+        timedOut,
+        state,
+      },
     ];
+
     if (a.index + 1 < a.tasks.length) {
       cur.applyScenario(a.tasks[a.index + 1].state());
       const next = { ...a, index: a.index + 1, startedAt: Date.now(), results };
@@ -149,13 +208,37 @@ function TrainerProvider({ children }) {
       setAsmt(next);
       navigate("/osce/dashboard");
     } else {
-      const record = buildRecord(a.name, results);
-      const done = { ...a, results, phase: "done", record };
+      const localRecord = { ...buildRecord(a.name, results), attemptId: a.attemptId };
+      const done = { ...a, results, phase: "done", record: localRecord };
       asmtRef.current = done;
       setAsmt(done);
-      setProgress((p) => ({ ...p, assessments: [record, ...p.assessments] }));
+      setProgress((p) => ({
+        ...p,
+        assessments: [localRecord, ...p.assessments.filter((r) => r.attemptId !== localRecord.attemptId)].slice(0, 10),
+      }));
       setMode("free");
       navigate("/osce/assessment/result");
+
+      // Submit to the server. The server re-scores against seeded tasks and replaces the local record.
+      if (a.remote) {
+        api
+          .submitOsceAttempt(
+            a.attemptId,
+            results.map((r) => ({ state: r.state, timeSec: r.timeSec, timedOut: r.timedOut })),
+          )
+          .then(({ record: server }) => {
+            const rec = { ...localRecord, ...server };
+            asmtRef.current = { ...done, record: rec };
+            setAsmt((x) => (x ? { ...x, record: rec } : x));
+            setProgress((p) => ({
+              ...p,
+              assessments: [rec, ...p.assessments.filter((r) => r.attemptId !== rec.attemptId)].slice(0, 10),
+            }));
+          })
+          .catch(() => {
+            /* keep local record if the server can't be reached */
+          });
+      }
     }
   };
 
