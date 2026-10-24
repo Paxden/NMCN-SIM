@@ -10,6 +10,7 @@ import {
 } from "./osceScenarios";
 
 const examiner = (s, username) => s.examiners.find((e) => e.username === username);
+const candidate = (s, examNo) => s.candidates.find((c) => c.examNo === examNo);
 
 export const OSCE_EXERCISES = [
   {
@@ -61,6 +62,20 @@ export const OSCE_EXERCISES = [
     ],
   },
   {
+    id: "score-viva",
+    level: "Medium",
+    title: "Score a candidate in the viva",
+    brief:
+      "It is Day 1 and the station computers are approved. Start the Viva. Then, on the examiner computer, sign in Mrs Okoro (gokoro, password grace123) and score candidate NSG26005 in the Viva with any grades.",
+    tip: "Open the examiner computer from the button at the bottom right.",
+    state: () => activated({ ips: STATION_IPS(true), examiners: withExaminers(2) }),
+    steps: [
+      { text: "Start the Viva", done: (s) => s.components.viva !== "idle" },
+      { text: "Sign Mrs Okoro in on the examiner computer", done: (s) => s.events.includes("examiner-login:gokoro") },
+      { text: "Score NSG26005 in the Viva", done: (s) => !!s.scores?.viva?.NSG26005 },
+    ],
+  },
+  {
     id: "assign-lead",
     level: "Medium",
     title: "Assign examiners and a lead",
@@ -79,12 +94,12 @@ export const OSCE_EXERCISES = [
     level: "Medium",
     title: "Register the station computers",
     brief:
-      "The examination is activated. One procedure station laptop (:8000) and one question station laptop (:7000) are on the hall wifi but the server does not know them yet. Register both and clear them on the whitelist.",
-    tip: "Open the station computers from Sandbox tools (bottom right).",
+      "The examination is activated. One examiner laptop (:8000) and one candidate laptop (:7000) are on the hall wifi but the server does not know them yet. Register both and clear them on the whitelist.",
+    tip: "Open the two computers from the buttons at the bottom right.",
     state: () => activated(),
     steps: [
-      { text: "Procedure station (:8000) adds its IP address", done: (s) => s.ips.some((i) => i.primary && i.port === 8000) },
-      { text: "Question station (:7000) adds its IP address", done: (s) => s.ips.some((i) => i.primary && i.port === 7000) },
+      { text: "Examiner computer (:8000) adds its IP address", done: (s) => s.ips.some((i) => i.primary && i.port === 8000) },
+      { text: "Candidate computer (:7000) adds its IP address", done: (s) => s.ips.some((i) => i.primary && i.port === 7000) },
       { text: "Approve both on the IP Whitelist", done: (s) => s.ips.filter((i) => i.primary).length >= 2 && s.ips.filter((i) => i.primary).every((i) => i.approved) },
     ],
   },
@@ -105,12 +120,25 @@ export const OSCE_EXERCISES = [
     level: "Medium",
     title: "Candidate cannot log in",
     brief:
-      "Both station computers are approved. Candidate NSG26003 is at the question station but cannot log in. Find out why and get the candidate signed in.",
-    tip: "Open the question station computer from Sandbox tools (bottom right).",
+      "Both station computers are approved. Candidate NSG26003 is at the candidate computer but cannot log in. Find out why and get the candidate signed in.",
+    tip: "Open the candidate computer from the button at the bottom right.",
     state: () => activated({ ips: STATION_IPS(true), examiners: withExaminers(2) }),
     steps: [
       { text: "Start the OSCE", done: (s) => s.components.osce === "started" },
-      { text: "Sign NSG26003 in at the question station (:7000)", done: (s) => s.events.includes("candidate-login:NSG26003") },
+      { text: "Sign NSG26003 in on the candidate computer (:7000)", done: (s) => s.events.includes("candidate-login:NSG26003") },
+    ],
+  },
+  {
+    id: "question-station",
+    level: "Medium",
+    title: "A candidate sits a question station",
+    brief:
+      "The OSCE is running. Candidate NSG26007 must sit Question station 2. On the candidate computer, sign the candidate in, open Question station 2 and submit the answers.",
+    tip: "Open the candidate computer from the button at the bottom right.",
+    state: () => activated({ components: comps({ osce: "started" }), ips: STATION_IPS(true) }),
+    steps: [
+      { text: "Sign NSG26007 in on the candidate computer", done: (s) => s.events.includes("candidate-login:NSG26007") },
+      { text: "Submit Question station 2", done: (s) => !!candidate(s, "NSG26007")?.progress[3] },
     ],
   },
   {

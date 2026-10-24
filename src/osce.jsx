@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useSim } from "./store";
 import { useOsce, SERVER_LOGIN } from "./osceStore";
 import { Link, navigate } from "./router";
 import { ConfirmDialog } from "./components";
@@ -14,14 +13,12 @@ import {
 } from "./osceTrainer";
 import {
   ALL_PROCEDURES, COMPONENTS, OSCE_EXAM, PROCEDURE_PORT, PROGRAMS, QUESTION_PORT,
-  SERVER_IP, STATION_ORDER, procedureLabel,
+  STATION_ORDER, procedureLabel,
 } from "./osceData";
+import { Bar, componentProgress, useReport } from "./osceShared";
 
-// Every action returns { ok, msg }; this turns the result into a toast.
-function useReport() {
-  const { showToast } = useSim();
-  return (r) => showToast(r.msg, r.ok ? "success" : "error");
-}
+// App.jsx imports StationPage from here.
+export { StationPage } from "./osceStations";
 
 /* ---------- routing ---------- */
 
@@ -81,8 +78,10 @@ const SUB = [
   ["/osce/sync", "Synchronize"],
 ];
 
+// The exam page, examiners, candidates and the OSCE view all belong under Dashboard.
 function activeSub(path) {
-  if (path.startsWith("/osce/examiners") || path.startsWith("/osce/view")) return "/osce/dashboard";
+  if (path.startsWith("/osce/exam") || path.startsWith("/osce/candidates") || path.startsWith("/osce/view"))
+    return "/osce/dashboard";
   return path;
 }
 
@@ -94,9 +93,11 @@ function OsceShell({ path }) {
   let page;
   if (path === "/osce/home") page = <Home />;
   else if (path === "/osce/dashboard") page = <Dashboard />;
+  else if (path === "/osce/exam") page = <ExamPage />;
   else if (path === "/osce/examiners") page = <Examiners />;
+  else if (path === "/osce/candidates") page = <CandidatesPage />;
   else if (path === "/osce/view") page = <ViewPrograms />;
-  else if (path === "/osce/view/assign") page = <AssignExaminers />;
+  else if (path.startsWith("/osce/view/assign")) page = <AssignExaminers focus={path.split("/")[4] || ""} />;
   else if (path.startsWith("/osce/view/program/")) page = <ProgramPage id={path.split("/").pop()} />;
   else if (path === "/osce/download") page = <DownloadPage />;
   else if (path === "/osce/upload") page = <UploadPage />;
@@ -166,34 +167,85 @@ function Home() {
   );
 }
 
+// The list of examinations. View opens the exam page.
 function Dashboard() {
+  const { downloaded } = useOsce();
+  const { mode } = useTrainer();
+  const procedureCount = PROGRAMS.reduce((a, p) => a + p.procedures.length, 0);
+  return (
+    <>
+      <div className="osce-top">
+        <h2>CAOSCE Dashboard</h2>
+      </div>
+      <div className="card table-wrap">
+        <table>
+          <thead>
+            <tr><th>S/N</th><th>Examination</th><th>Programs</th><th>Procedures</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {!downloaded && (
+              <tr>
+                <td colSpan={5} className="muted">
+                  No examination loaded.
+                  {mode !== "assessment" && <> Go to <Link to="/osce/download">Download</Link> first.</>}
+                </td>
+              </tr>
+            )}
+            {downloaded && (
+              <tr>
+                <td>1</td>
+                <td>{OSCE_EXAM.name}</td>
+                <td>{PROGRAMS.map((p) => p.short).join(", ")}</td>
+                <td className="num">{procedureCount}</td>
+                <td><Link to="/osce/exam" className="btn btn-primary btn-sm">View</Link></td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+// One examination: its components, with progress, and the Examiners and Candidates buttons.
+function ExamPage() {
   const o = useOsce();
   const report = useReport();
-  const [confirm, setConfirm] = useState(null); // component key
-  const target = COMPONENTS.find((c) => c.key === confirm);
+  const [ask, setAsk] = useState(null); // { type: "start" | "end", key }
+  const comp = COMPONENTS.find((c) => c.key === ask?.key);
+  const total = o.candidates.length;
+  const ending = ask?.type === "end";
 
   return (
     <>
       <div className="osce-top">
-        <h2>Dashboard</h2>
-        <Link to="/osce/examiners" className="btn btn-primary">Examiners</Link>
+        <Link to="/osce/dashboard" className="btn btn-light btn-sm">&larr; Dashboard</Link>
+        <div className="row-gap">
+          <Link to="/osce/examiners" className="btn btn-primary">Examiners</Link>
+          <Link to="/osce/candidates" className="btn btn-primary">Candidates</Link>
+        </div>
       </div>
 
-      <div className="card">
+      <div className="card exam-head">
         <h3>{OSCE_EXAM.name}</h3>
         <p className="muted" style={{ margin: 0 }}>
-          Number of candidates: <strong>{o.candidates.length}</strong>
+          Number of candidates: <strong>{total}</strong>
         </p>
       </div>
 
+      <h3 className="section-title">OSCE Components</h3>
       <div className="comp-row">
         {COMPONENTS.map((c) => {
           const st = o.components[c.key];
           const isOsce = c.key === "osce";
+          const done = componentProgress(o, c.key);
           return (
             <div className="card comp-card" key={c.key}>
               <div className="comp-title">{c.label}</div>
-              <div className="muted comp-day">{c.day}</div>
+              <div className="muted comp-day">
+                {done} of {total} candidates {isOsce ? "finished" : "scored"}
+              </div>
+              <Bar value={done} max={total} />
               <div className="comp-actions">
                 {isOsce && st !== "idle" ? (
                   <Link to="/osce/view" className="btn btn-primary btn-sm">View</Link>
@@ -201,12 +253,16 @@ function Dashboard() {
                   <button
                     className="btn btn-primary btn-sm"
                     disabled={st !== "idle"}
-                    onClick={() => report(o.startComponent(c.key))}
+                    onClick={() => setAsk({ type: "start", key: c.key })}
                   >
                     {st === "idle" ? "Start" : "Started"}
                   </button>
                 )}
-                <button className="btn btn-danger btn-sm" disabled={st !== "started"} onClick={() => setConfirm(c.key)}>
+                <button
+                  className="btn btn-danger btn-sm"
+                  disabled={st !== "started"}
+                  onClick={() => setAsk({ type: "end", key: c.key })}
+                >
                   {st === "ended" ? "Ended" : "End"}
                 </button>
               </div>
@@ -216,25 +272,70 @@ function Dashboard() {
       </div>
 
       <ConfirmDialog
-        open={!!confirm}
-        danger
-        title={`End ${target?.label || ""}?`}
-        message="This closes it for every examiner and candidate. It cannot be started again."
-        confirmLabel="End"
-        onCancel={() => setConfirm(null)}
+        open={!!ask}
+        danger={ending}
+        title={`${ending ? "End" : "Start"} ${comp?.label || ""}?`}
+        message={
+          ending
+            ? "This closes it for every examiner and candidate. It cannot be started again."
+            : ask?.key === "osce"
+            ? "Candidates will be able to log in at the question stations and examiners can start scoring."
+            : "Examiners will be able to score candidates once it has started."
+        }
+        confirmLabel={ending ? "End" : "Start"}
+        onCancel={() => setAsk(null)}
         onConfirm={() => {
-          report(o.endComponent(confirm));
-          setConfirm(null);
+          report(ending ? o.endComponent(ask.key) : o.startComponent(ask.key));
+          setAsk(null);
         }}
       />
     </>
   );
 }
 
+function CandidatesPage() {
+  const { candidates } = useOsce();
+  const [q, setQ] = useState("");
+  const list = candidates.filter((c) => `${c.name} ${c.examNo}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const programName = (id) => PROGRAMS.find((p) => p.id === id)?.name || id;
+
+  return (
+    <>
+      <div className="osce-top">
+        <h2>Candidates</h2>
+        <Link to="/osce/exam" className="btn btn-light btn-sm">&larr; Back</Link>
+      </div>
+      <div className="card table-wrap">
+        <input
+          className="name-input"
+          placeholder="Search by name or exam number"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <table>
+          <thead><tr><th>S/N</th><th>Name</th><th>Exam no</th><th>Program</th></tr></thead>
+          <tbody>
+            {list.length === 0 && <tr><td colSpan={4} className="muted">No candidates to show.</td></tr>}
+            {list.map((c, i) => (
+              <tr key={c.examNo}>
+                <td>{i + 1}</td>
+                <td>{c.name}</td>
+                <td>{c.examNo}</td>
+                <td>{programName(c.program)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 function Examiners() {
-  const { examiners, createExaminer } = useOsce();
+  const { examiners, createExaminer, deleteExaminer } = useOsce();
   const report = useReport();
   const [f, setF] = useState({ fullName: "", username: "", password: "" });
+  const [del, setDel] = useState(null);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const submit = (e) => {
@@ -248,20 +349,25 @@ function Examiners() {
     <>
       <div className="osce-top">
         <h2>Examiners</h2>
-        <Link to="/osce/dashboard" className="btn btn-light btn-sm">&larr; Back to Dashboard</Link>
+        <Link to="/osce/exam" className="btn btn-light btn-sm">&larr; Back</Link>
       </div>
       <div className="two-col">
         <div className="card table-wrap">
           <h3>Examiner list</h3>
           <table>
-            <thead><tr><th>#</th><th>Full name</th><th>Username</th></tr></thead>
+            <thead>
+              <tr><th>#</th><th>Full name</th><th>Username</th><th>Password</th><th>Procedure</th><th></th></tr>
+            </thead>
             <tbody>
-              {examiners.length === 0 && <tr><td colSpan={3} className="muted">No examiners yet. Create one on the right.</td></tr>}
+              {examiners.length === 0 && <tr><td colSpan={6} className="muted">No examiners yet. Create one on the right.</td></tr>}
               {examiners.map((e, i) => (
                 <tr key={e.id}>
                   <td>{i + 1}</td>
                   <td>{e.fullName}{e.lead && <span className="must">lead</span>}</td>
                   <td>{e.username}</td>
+                  <td>{e.password}</td>
+                  <td>{e.procedure ? procedureLabel(e.procedure) : <span className="muted">Not assigned</span>}</td>
+                  <td><button className="btn btn-danger btn-sm" onClick={() => setDel(e)}>Delete</button></td>
                 </tr>
               ))}
             </tbody>
@@ -279,48 +385,76 @@ function Examiners() {
           <button className="btn btn-primary block" type="submit">Create</button>
         </form>
       </div>
+
+      <ConfirmDialog
+        open={!!del}
+        danger
+        title="Delete examiner?"
+        message={`${del?.fullName || "This examiner"} will no longer be able to log in or score candidates.`}
+        confirmLabel="Delete"
+        onCancel={() => setDel(null)}
+        onConfirm={() => {
+          report(deleteExaminer(del.id));
+          setDel(null);
+        }}
+      />
     </>
   );
 }
 
+// The OSCE view: the examination, then a clickable card for every program.
 function ViewPrograms() {
-  const { candidates, downloaded } = useOsce();
+  const { candidates, examiners, downloaded } = useOsce();
   return (
     <>
       <div className="osce-top">
         <div>
           <h2 style={{ marginBottom: 2 }}>OSCE</h2>
-          <p className="muted" style={{ margin: 0 }}>{candidates.length} candidates</p>
+          <p className="muted" style={{ margin: 0 }}>{OSCE_EXAM.name}</p>
         </div>
         <div className="row-gap">
-          <Link to="/osce/dashboard" className="btn btn-light">&larr; Dashboard</Link>
+          <Link to="/osce/exam" className="btn btn-light">&larr; Back</Link>
           <Link to="/osce/view/assign" className="btn btn-primary">Assign Examiner</Link>
         </div>
       </div>
       {!downloaded && <div className="note">No candidates yet. Download the examination first.</div>}
-      {PROGRAMS.map((p) => (
-        <Link key={p.id} to={`/osce/view/program/${p.id}`} className="prog-row">
-          <div>
-            <div className="prog-name">{p.name}</div>
-            <div className="muted">{candidates.filter((c) => c.program === p.id).length} candidates</div>
-          </div>
-          <span className="prog-go">&rarr;</span>
-        </Link>
-      ))}
+      {PROGRAMS.map((p, i) => {
+        const list = candidates.filter((c) => c.program === p.id);
+        const done = list.reduce((a, c) => a + c.progress.filter(Boolean).length, 0);
+        const examinerCount = examiners.filter((e) => e.procedure.startsWith(`${p.id}-`)).length;
+        return (
+          <Link key={p.id} to={`/osce/view/program/${p.id}`} className="prog-card">
+            <div className="prog-name">{i + 1}. {p.name}</div>
+            <div className="prog-meta">
+              <span>{p.procedures.length} procedures</span>
+              <span>{list.length} candidates</span>
+              <span>{examinerCount} examiners</span>
+              <span>Progress: {list.length ? Math.round((done / (list.length * 6)) * 100) : 0}%</span>
+            </div>
+            <Bar value={done} max={list.length * 6} />
+          </Link>
+        );
+      })}
     </>
   );
 }
 
-function AssignExaminers() {
+// Assign examiners to procedures. With a procedure in the address, the examiners on it are listed first.
+function AssignExaminers({ focus }) {
   const { examiners, assignExaminer, makeLead } = useOsce();
   const report = useReport();
   const [draft, setDraft] = useState({});
+  const sorted = [...examiners].sort((a, b) => Number(b.procedure === focus) - Number(a.procedure === focus));
+  const back = focus ? `/osce/view/program/${focus.split("-")[0]}` : "/osce/view";
 
   return (
     <>
       <div className="osce-top">
-        <h2>Assign examiner</h2>
-        <Link to="/osce/view" className="btn btn-light btn-sm">&larr; Back</Link>
+        <div>
+          <h2 style={{ marginBottom: 2 }}>Assign examiner</h2>
+          {focus && <p className="muted" style={{ margin: 0 }}>{procedureLabel(focus)}</p>}
+        </div>
+        <Link to={back} className="btn btn-light btn-sm">&larr; Back</Link>
       </div>
       <div className="card table-wrap">
         <table>
@@ -331,8 +465,8 @@ function AssignExaminers() {
             {examiners.length === 0 && (
               <tr><td colSpan={6} className="muted">No examiners yet. <Link to="/osce/examiners">Create examiners</Link> first.</td></tr>
             )}
-            {examiners.map((e) => {
-              const value = draft[e.id] ?? e.procedure;
+            {sorted.map((e) => {
+              const value = draft[e.id] ?? (e.procedure || focus || "");
               return (
                 <tr key={e.id}>
                   <td>{e.fullName}{e.lead && <span className="must">lead</span>}</td>
@@ -360,6 +494,7 @@ function AssignExaminers() {
   );
 }
 
+// One program: its procedures with progress and a View examiner button, then its candidates.
 function ProgramPage({ id }) {
   const { candidates } = useOsce();
   const program = PROGRAMS.find((p) => p.id === id);
@@ -369,31 +504,38 @@ function ProgramPage({ id }) {
   return (
     <>
       <div className="osce-top">
-        <div>
-          <h2 style={{ marginBottom: 2 }}>{program.name}</h2>
-          <p className="muted" style={{ margin: 0 }}>{list.length} candidates</p>
-        </div>
+        <h2 style={{ marginBottom: 2 }}>{OSCE_EXAM.name} | {program.name}</h2>
         <Link to="/osce/view" className="btn btn-light btn-sm">&larr; Back</Link>
       </div>
 
-      <div className="card">
+      <div className="card proc-list">
         <h3>Procedures</h3>
-        <ul className="rules" style={{ marginBottom: 0 }}>
-          {program.procedures.map((name, i) => <li key={name}><strong>Procedure {i + 1}:</strong> {name}</li>)}
-        </ul>
+        {program.procedures.map((name, i) => {
+          const done = list.filter((c) => c.progress[i * 2]).length;
+          return (
+            <div className="proc-row" key={name}>
+              <span className="proc-name">{i + 1}. {name}</span>
+              <span className="proc-prog">
+                <Bar value={done} max={list.length} />
+                <span className="pbar-text">{done} of {list.length} candidates done</span>
+              </span>
+              <Link to={`/osce/view/assign/${id}-p${i + 1}`} className="btn btn-light btn-sm">View examiner</Link>
+            </div>
+          );
+        })}
       </div>
 
       <div className="card table-wrap">
         <h3>Candidates</h3>
         <p className="muted" style={{ marginTop: 0 }}>Each circle turns green when the candidate finishes that station.</p>
         <table>
-          <thead><tr><th>Exam No</th><th>Team</th><th>Stations</th></tr></thead>
+          <thead><tr><th>Exam no</th><th>Name</th><th>Stations</th></tr></thead>
           <tbody>
             {list.length === 0 && <tr><td colSpan={3} className="muted">No candidates yet.</td></tr>}
             {list.map((c) => (
               <tr key={c.examNo}>
                 <td>{c.examNo}</td>
-                <td>{c.team}</td>
+                <td>{c.name}</td>
                 <td>
                   <div className="stn-row">
                     {STATION_ORDER.map((s, i) => (
@@ -540,94 +682,7 @@ function SyncPage() {
   );
 }
 
-/* ---------- the station computers (procedure :8000, question :7000) ---------- */
-
-export function StationPage({ path }) {
-  const o = useOsce();
-  const report = useReport();
-  const port = path.endsWith(String(QUESTION_PORT)) ? QUESTION_PORT : PROCEDURE_PORT;
-  const isProc = port === PROCEDURE_PORT;
-  const entry = o.primaryIp(port);
-  const [a, setA] = useState("");
-  const [b, setB] = useState("");
-  const [who, setWho] = useState(null);
-
-  const url = !entry ? `${SERVER_IP}:${port}/addipaddress` : `${SERVER_IP}:${port}`;
-
-  const signIn = (e) => {
-    e.preventDefault();
-    const r = isProc ? o.examinerLogin(a, b) : o.candidateLogin(a);
-    report(r);
-    setWho(r.ok ? r : null);
-  };
-
-  let body;
-  if (!entry) {
-    body = (
-      <>
-        <h2>Add IP address</h2>
-        <p className="muted">This computer has not been registered with the server yet.</p>
-        <button className="btn btn-primary" onClick={() => report(o.addStationIp(port))}>Add IP address</button>
-      </>
-    );
-  } else if (!entry.approved) {
-    body = (
-      <>
-        <h2>Access denied</h2>
-        <p className="muted">This computer ({entry.ip}) is waiting for approval. Ask the exam manager to approve it on the IP Whitelist page, then reload.</p>
-        <button className="btn btn-light" onClick={() => report({ ok: false, msg: "Still waiting for approval" })}>Reload</button>
-      </>
-    );
-  } else if (who) {
-    body = (
-      <>
-        <h2>{who.msg}</h2>
-        {isProc ? (
-          <p className="muted">
-            {who.examiner.lead
-              ? "Lead examiner: you can see every procedure's candidate instructions and requirements."
-              : who.examiner.procedure
-              ? `Your procedure: ${procedureLabel(who.examiner.procedure)}`
-              : "No procedure has been assigned to you yet."}
-          </p>
-        ) : (
-          <p className="muted">Candidate {who.candidate.examNo}. Your question station is ready.</p>
-        )}
-        <button className="btn btn-light" onClick={() => setWho(null)}>Log out</button>
-      </>
-    );
-  } else {
-    body = (
-      <form onSubmit={signIn} className="stack-form">
-        <h2>{isProc ? "Examiner login" : "Candidate login"}</h2>
-        <label>{isProc ? "Username" : "Exam number"}</label>
-        <input value={a} onChange={(e) => setA(e.target.value)} autoFocus />
-        {isProc && (
-          <>
-            <label>Password</label>
-            <input type="password" value={b} onChange={(e) => setB(e.target.value)} />
-          </>
-        )}
-        <button className="btn btn-primary block" type="submit">Login</button>
-      </form>
-    );
-  }
-
-  return (
-    <div className="station-wrap">
-      <div className="station-top">
-        <Link to="/osce/ip-whitelist" className="btn btn-light btn-sm">&larr; Back to the server</Link>
-        <span className="muted">{isProc ? "Procedure station computer" : "Question station computer"}</span>
-      </div>
-      <div className="browser">
-        <div className="browser-bar">{url}</div>
-        <div className="browser-body">{body}</div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- sandbox tools ---------- */
+/* ---------- bottom right: the two station computers and the sandbox tools ---------- */
 
 function OscePanel() {
   const o = useOsce();
@@ -652,17 +707,14 @@ function OscePanel() {
               <input type="checkbox" checked={o.online} onChange={(e) => o.setOnline(e.target.checked)} />
               <span>Internet connection: <strong>{o.online ? "Online" : "Offline"}</strong></span>
             </label>
-            <button className="sim-item" onClick={() => navigate(`/osce-station/${PROCEDURE_PORT}`)}>
-              Open a procedure station computer (:{PROCEDURE_PORT})
-            </button>
-            <button className="sim-item" onClick={() => navigate(`/osce-station/${QUESTION_PORT}`)}>
-              Open a question station computer (:{QUESTION_PORT})
-            </button>
             {!graded && (
               <button className="sim-item" onClick={() => report(o.simAddIps())}>4 more station computers add their IP</button>
             )}
             {!graded && (
               <button className="sim-item" onClick={() => report(o.simAdvance())}>5 candidates finish their next station</button>
+            )}
+            {!graded && (
+              <button className="sim-item" onClick={() => report(o.simScore())}>5 more candidates get scored in started components</button>
             )}
             {mode === "free" && (
               <button className="sim-item danger" onClick={() => { o.wipe(); navigate("/osce"); }}>Wipe sandbox and start over</button>
@@ -670,7 +722,11 @@ function OscePanel() {
           </div>
         </div>
       )}
-      <button className="sim-fab" onClick={() => setOpen((v) => !v)}>Sandbox tools</button>
+      <div className="sim-fabs">
+        <button className="sim-fab computer" onClick={() => navigate(`/osce-station/${PROCEDURE_PORT}`)}>Examiner computer</button>
+        <button className="sim-fab computer" onClick={() => navigate(`/osce-station/${QUESTION_PORT}`)}>Candidate computer</button>
+        <button className="sim-fab" onClick={() => setOpen((v) => !v)}>Sandbox tools</button>
+      </div>
     </div>
   );
 }

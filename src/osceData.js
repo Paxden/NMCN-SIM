@@ -10,7 +10,7 @@ export const OSCE_EXAM = {
     "Computer-aided OSCE for the Professional Nursing Examination. Day 1 covers viva, client care, expected family care and research. Day 2 is the OSCE itself.",
 };
 
-// Day 1 components and the Day 2 OSCE. Each has a Start and an End button on the dashboard.
+// Day 1 components and the Day 2 OSCE. Each has a Start and an End button on the exam page.
 export const COMPONENTS = [
   { key: "osce", label: "OSCE", day: "Day 2" },
   { key: "viva", label: "Viva", day: "Day 1" },
@@ -77,5 +77,9 @@ export const freshOsce = () => ({
   ips: [], // { id, ip, port, approved, primary }
   syncCount: 0,
   mistakes: 0, // failed actions, used to score exercises and the assessment
-  events: [], // station sign-ins, e.g. "examiner-login:gokoro", "candidate-login:NSG26003"
+  events: [], // station sign-ins and submissions, e.g. "examiner-login:gokoro", "score:viva:NSG26005"
+  scores: {}, // scores[key][examNo] = { grades, total, max, by }  (key: viva, client_care, family_care, research, p1, p2, p3)
+  qresults: {}, // qresults["NSG26007:2"] = { correct, total }
+  examinerSession: null, // the signed-in examiner computer: { username, page, key, examNo, procKey }
+  candidateSession: null, // the signed-in candidate computer: { examNo, q, idx, answers }
 });

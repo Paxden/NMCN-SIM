@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { PROCEDURE_PORT, QUESTION_PORT, freshOsce, makeOsceCandidates } from "./osceData";
+import { COMPONENTS, PROCEDURE_PORT, QUESTION_PORT, freshOsce, makeOsceCandidates } from "./osceData";
+import { COMPONENT_STEPS, GRADES, QUESTIONS, stepsFor } from "./osceContent";
 
 const KEY = "caosce-sim-state-v1";
 const Ctx = createContext(null);
@@ -21,6 +22,8 @@ const ok = (msg, extra = {}) => ({ ok: true, msg, ...extra });
 const failBase = (msg) => ({ ok: false, msg });
 const uid = () => Math.random().toString(36).slice(2, 9);
 const NO_NET = "No internet connection. Connect to the internet and try again.";
+const isProcKey = (k) => /^p[1-3]$/.test(k);
+const labelOf = (key) => COMPONENTS.find((c) => c.key === key)?.label || key;
 
 export function OsceProvider({ children }) {
   const [s, setS] = useState(load);
@@ -38,7 +41,6 @@ export function OsceProvider({ children }) {
     setS((st) => ({ ...st, mistakes: (st.mistakes || 0) + 1 }));
     return failBase(msg);
   };
-  const logEvent = (ev) => setS((st) => ({ ...st, events: [...(st.events || []), ev] }));
   // Replace the whole sandbox with a fresh one plus a patch. Used by the tour, exercises and assessment.
   const applyScenario = (patch = {}) => setS({ ...freshOsce(), ...patch });
 
@@ -84,18 +86,18 @@ export function OsceProvider({ children }) {
     return ok("Synchronised. 2 new candidates downloaded.");
   };
 
-  /* ---------- dashboard components ---------- */
+  /* ---------- exam components ---------- */
   const startComponent = (key) => {
     if (!s.activated) return fail("Download and activate the examination first");
     if (s.components[key] !== "idle") return fail("Already started");
     setS((st) => ({ ...st, components: { ...st.components, [key]: "started" } }));
-    return ok("Started");
+    return ok(`${labelOf(key)} started`);
   };
 
   const endComponent = (key) => {
     if (s.components[key] !== "started") return fail("This has not been started");
     setS((st) => ({ ...st, components: { ...st.components, [key]: "ended" } }));
-    return ok("Ended");
+    return ok(`${labelOf(key)} ended`);
   };
 
   /* ---------- examiners ---------- */
@@ -111,6 +113,17 @@ export function OsceProvider({ children }) {
       ],
     }));
     return ok("Examiner created");
+  };
+
+  const deleteExaminer = (id) => {
+    const e = s.examiners.find((x) => x.id === id);
+    if (!e) return fail("Examiner not found");
+    setS((st) => ({
+      ...st,
+      examiners: st.examiners.filter((x) => x.id !== id),
+      examinerSession: st.examinerSession?.username === e.username ? null : st.examinerSession,
+    }));
+    return ok(`${e.fullName} deleted`);
   };
 
   const assignExaminer = (id, procedure) => {
@@ -160,23 +173,104 @@ export function OsceProvider({ children }) {
     return ok("4 station computers added their IP addresses");
   };
 
-  /* ---------- station sign-in (what examiners and candidates do after approval) ---------- */
+  /* ---------- examiner computer (:8000) ---------- */
   const examinerLogin = (username, password) => {
     const e = s.examiners.find((x) => x.username === username.trim());
     if (!e || e.password !== password) return fail("Invalid username or password");
-    logEvent(`examiner-login:${e.username}`);
+    setS((st) => ({
+      ...st,
+      events: [...(st.events || []), `examiner-login:${e.username}`],
+      examinerSession: { username: e.username, page: "dashboard", key: "", examNo: "", procKey: "p1" },
+    }));
     return ok(`Welcome, ${e.fullName}`, { examiner: e });
   };
+  const examinerLogout = () => setS((st) => ({ ...st, examinerSession: null }));
+  const patchExaminerSession = (patch) =>
+    setS((st) => (st.examinerSession ? { ...st, examinerSession: { ...st.examinerSession, ...patch } } : st));
 
+  // The examiner searches for a candidate to score in a component (key "viva") or a procedure (key "p1".."p3").
+  const openCandidate = (key, examNo) => {
+    const no = examNo.trim().toUpperCase();
+    if (!no) return fail("Enter the candidate exam number");
+    const c = s.candidates.find((x) => x.examNo === no);
+    if (!c) return fail(`Candidate ${no} not found`);
+    const gate = isProcKey(key) ? "osce" : key;
+    if (s.components[gate] === "idle") return fail(`${labelOf(gate)} has not started`);
+    if (s.components[gate] === "ended") return fail(`${labelOf(gate)} has ended`);
+    if (isProcKey(key)) {
+      const me = s.examiners.find((e) => e.username === s.examinerSession?.username);
+      if (!me) return fail("Examiner not found");
+      if (!me.lead && me.procedure !== `${c.program}-${key}`) return fail(`${no} is not on your procedure`);
+    }
+    setS((st) => (st.examinerSession ? { ...st, examinerSession: { ...st.examinerSession, key, examNo: no } } : st));
+    return ok(`Candidate ${no}`);
+  };
+
+  const submitScore = (key, examNo, grades, by) => {
+    const c = s.candidates.find((x) => x.examNo === examNo);
+    if (!c) return fail(`Candidate ${examNo} not found`);
+    const proc = isProcKey(key);
+    const gate = proc ? "osce" : key;
+    if (s.components[gate] === "idle") return fail(`${labelOf(gate)} has not started`);
+    if (s.components[gate] === "ended") return fail(`${labelOf(gate)} has ended`);
+    const steps = stepsFor(key, c.program);
+    if (grades.length !== steps.length || grades.some((g) => !GRADES.includes(g)))
+      return fail("Grade every step before submitting");
+    const total = grades.reduce((a, g) => a + g, 0);
+    setS((st) => ({
+      ...st,
+      scores: {
+        ...st.scores,
+        [key]: { ...(st.scores[key] || {}), [examNo]: { grades, total, max: steps.length * 2, by } },
+      },
+      // Scoring a procedure marks that station done for the candidate.
+      candidates: proc
+        ? st.candidates.map((x) =>
+            x.examNo === examNo ? { ...x, progress: x.progress.map((p, i) => (i === (Number(key[1]) - 1) * 2 ? true : p)) } : x,
+          )
+        : st.candidates,
+      events: [...(st.events || []), `score:${key}:${examNo}`],
+    }));
+    return ok(`Score saved for ${examNo}`);
+  };
+
+  /* ---------- candidate computer (:7000) ---------- */
   const candidateLogin = (examNo) => {
     if (s.components.osce !== "started") return fail("The OSCE has not started");
     const c = s.candidates.find((x) => x.examNo === examNo.trim().toUpperCase());
     if (!c) return fail(`Candidate ${examNo.trim().toUpperCase() || ""} not found`.trim());
-    logEvent(`candidate-login:${c.examNo}`);
+    setS((st) => ({
+      ...st,
+      events: [...(st.events || []), `candidate-login:${c.examNo}`],
+      candidateSession: { examNo: c.examNo, q: null, idx: 0, answers: [] },
+    }));
     return ok(`Welcome, ${c.name}`, { candidate: c });
   };
+  const candidateLogout = () => setS((st) => ({ ...st, candidateSession: null }));
+  const patchCandidateSession = (patch) =>
+    setS((st) => (st.candidateSession ? { ...st, candidateSession: { ...st.candidateSession, ...patch } } : st));
 
-  /* ---------- sandbox helper: candidates move through the stations ---------- */
+  const submitQuestions = (examNo, q, answers) => {
+    const c = s.candidates.find((x) => x.examNo === examNo);
+    if (!c) return fail(`Candidate ${examNo} not found`);
+    if (s.components.osce !== "started") return fail("The OSCE is not running");
+    const idx = (q - 1) * 2 + 1;
+    if (c.progress[idx]) return fail(`Question station ${q} has already been submitted`);
+    const qs = QUESTIONS[c.program]?.[q] || [];
+    const correct = qs.filter((x, i) => answers[i] === x.answer).length;
+    setS((st) => ({
+      ...st,
+      qresults: { ...st.qresults, [`${examNo}:${q}`]: { correct, total: qs.length } },
+      candidates: st.candidates.map((x) =>
+        x.examNo === examNo ? { ...x, progress: x.progress.map((p, i) => (i === idx ? true : p)) } : x,
+      ),
+      events: [...(st.events || []), `answers:${q}:${examNo}`],
+      candidateSession: st.candidateSession ? { ...st.candidateSession, q: null, idx: 0, answers: [] } : null,
+    }));
+    return ok(`Question station ${q} submitted`);
+  };
+
+  /* ---------- sandbox helpers ---------- */
   const simAdvance = () => {
     if (s.components.osce !== "started") return fail("Start the OSCE first");
     const pending = s.candidates.filter((c) => c.progress.some((p) => !p));
@@ -193,14 +287,38 @@ export function OsceProvider({ children }) {
     return ok(`${ids.length} candidates finished their next station`);
   };
 
+  // Examiners score 5 more candidates in every Day 1 component that has started.
+  const simScore = () => {
+    const keys = Object.keys(COMPONENT_STEPS).filter((k) => s.components[k] === "started");
+    if (!keys.length) return fail("Start a Day 1 component first");
+    setS((st) => {
+      const scores = { ...st.scores };
+      keys.forEach((k) => {
+        const cur = { ...(scores[k] || {}) };
+        st.candidates
+          .filter((c) => !cur[c.examNo])
+          .slice(0, 5)
+          .forEach((c) => {
+            const grades = COMPONENT_STEPS[k].map(() => GRADES[Math.floor(Math.random() * GRADES.length)]);
+            cur[c.examNo] = { grades, total: grades.reduce((a, g) => a + g, 0), max: grades.length * 2, by: "sandbox" };
+          });
+        scores[k] = cur;
+      });
+      return { ...st, scores };
+    });
+    return ok("5 more candidates scored in each started component");
+  };
+
   const value = {
     ...s,
     login, logout, setOnline, wipe, applyScenario,
     download, activate, upload, sync,
     startComponent, endComponent,
-    createExaminer, assignExaminer, makeLead,
+    createExaminer, deleteExaminer, assignExaminer, makeLead,
     primaryIp, addStationIp, approveIp, simAddIps,
-    examinerLogin, candidateLogin, simAdvance,
+    examinerLogin, examinerLogout, patchExaminerSession, openCandidate, submitScore,
+    candidateLogin, candidateLogout, patchCandidateSession, submitQuestions,
+    simAdvance, simScore,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
