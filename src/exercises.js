@@ -1,24 +1,29 @@
 import { stageState } from "./data";
 
+// The server login details a centre manager is given: the Centre ID (used as the Server ID)
+// and a generated 6-character code (used as the password). Shared by the trainer and the assessment.
+export const CBT_SERVER_LOGIN = { id: "104", password: "A7K2PQ" };
+const L = CBT_SERVER_LOGIN;
+
 // is("relogin", { examNo: "NSG26005" }) -> matches that action
 export const is = (type, payload = {}) => (a) =>
   a.type === type && Object.entries(payload).every(([k, v]) => a.payload?.[k] === v);
+
+const rec = (examNo, reason, i) => ({ id: `i${i}`, examNo, reason, at: i });
 
 // steps must be completed in order; other actions in between are allowed.
 // wrong(a) marks a harmful action. Error toasts also count as mistakes (unless ignoreErrors).
 export const EXERCISES = [
   {
     id: "setup",
-    title: "Set up a new server",
+    title: "Log in and set up the server",
     level: "Easy",
-    route: "/createserver",
-    brief:
-      "You have just arrived at the exam centre. Create the server, log in, download the exam data, activate the exam and then activate Session 1.",
+    route: "/admin",
+    brief: `You have just arrived at the exam centre with your server login details: Server ID ${L.id}, password ${L.password}. The server system is connected to the internet. Log in, download the exam data, activate the exam and then activate Session 1.`,
     prepare: () => stageState("start"),
     steps: [
-      { label: "Create the server", match: is("server_created") },
-      { label: "Log in to the admin panel", match: is("login") },
-      { label: "Download exam, candidates and questions", match: is("download") },
+      { label: "Log in with the server login details", match: is("login") },
+      { label: "Download the exam data", match: is("download") },
       { label: "Activate the exam", match: is("activate_exam") },
       { label: "Activate Session 1", match: is("activate_session", { session: "Session 1" }) },
     ],
@@ -26,26 +31,26 @@ export const EXERCISES = [
   },
   {
     id: "offline",
-    title: "No internet connection",
+    title: "Server system not online",
     level: "Medium",
-    route: "/admin/upload",
+    route: "/admin",
     network: true,
     ignoreErrors: true,
-    brief:
-      "The network cable was knocked out and the exam has not been downloaded yet. Restore the internet connection (switch in the Task panel), then download the exam data.",
-    prepare: () => ({ ...stageState("loggedIn"), online: false }),
+    brief: `The server system is not connected to the internet yet. Use your mobile hotspot to get it online (the internet switch is in the Task panel), log in with Server ID ${L.id} and password ${L.password}, then download the exam data.`,
+    prepare: () => ({ ...stageState("start"), online: false }),
     steps: [
-      { label: "Restore the internet connection", match: is("net_on") },
-      { label: "Download exam, candidates and questions", match: is("download") },
+      { label: "Connect the server system to the internet", match: is("net_on") },
+      { label: "Log in with the server login details", match: is("login") },
+      { label: "Download the exam data", match: is("download") },
     ],
   },
   {
     id: "disconnect",
-    title: "Candidate lost connection",
+    title: "Power outage on a candidate computer",
     level: "Easy",
     route: "/admin/manage",
     brief:
-      "Candidate NSG26005 lost connection mid-exam and the screen went blank. Get the candidate back into the exam without losing their answers.",
+      "A power outage restarted candidate NSG26005's computer. Get the candidate back into the exam so they can continue where they stopped.",
     prepare: () => stageState("writing"),
     steps: [
       { label: "Relogin candidate NSG26005", match: is("relogin", { examNo: "NSG26005" }) },
@@ -55,15 +60,26 @@ export const EXERCISES = [
       (a.type === "relogin" && a.payload.examNo !== "NSG26005"),
   },
   {
+    id: "relogin-all",
+    title: "Power outage on every computer",
+    level: "Medium",
+    route: "/admin/manage",
+    brief:
+      "A power outage switched off every candidate computer in the hall. Instead of logging candidates back in one after another, get all of them back into the exam at once.",
+    prepare: () => stageState("writing"),
+    steps: [{ label: "Relogin all candidates", match: is("relogin_all") }],
+    wrong: (a) => ["reset_candidate", "reset_server", "end_exam"].includes(a.type),
+  },
+  {
     id: "infraction",
-    title: "Clear a wrongly flagged candidate",
+    title: "Unflag a candidate for infraction",
     level: "Easy",
     route: "/admin/monitor",
     brief:
-      "Candidate NSG26009 has been flagged several times, but the invigilator confirms it was a false alarm. Clear the infractions for NSG26009 only.",
+      "Candidate NSG26009 broke the exam rules and, after three warnings on their own computer, was flagged for infraction. The centre manager has decided to lift the flag. Remove the infraction for NSG26009 only.",
     prepare: () => stageState("flagged"),
     steps: [
-      { label: "Remove infractions for NSG26009", match: is("unflag", { examNo: "NSG26009" }) },
+      { label: "Remove the infraction for NSG26009", match: is("unflag", { examNo: "NSG26009" }) },
     ],
     wrong: (a) =>
       ["reset_candidate", "reset_server", "end_exam"].includes(a.type) ||
@@ -71,21 +87,20 @@ export const EXERCISES = [
   },
   {
     id: "mistake",
-    title: "Candidate submitted by mistake",
+    title: "Candidate has the wrong time or paper",
     level: "Medium",
     route: "/admin/reset",
     brief:
-      "Candidate NSG26003 clicked Submit after answering only 47 questions. Reset that candidate, then log them back in so they can write again.",
+      "Candidate NSG26003 has less time than the other candidates and the wrong question paper, because the browser kept data from an earlier exam. Reset the candidate so their time and paper are restored. The candidate can log in straight after the reset.",
     prepare: () => {
       const s = stageState("writing");
       s.candidates = s.candidates.map((c) =>
-        c.examNo === "NSG26003" ? { ...c, status: "submitted", answered: 47 } : c
+        c.examNo === "NSG26003" ? { ...c, status: "writing", answered: 12 } : c
       );
       return s;
     },
     steps: [
       { label: "Reset candidate NSG26003", match: is("reset_candidate", { examNo: "NSG26003" }) },
-      { label: "Relogin candidate NSG26003", match: is("relogin", { examNo: "NSG26003" }) },
     ],
     wrong: (a) =>
       ["reset_server", "end_exam"].includes(a.type) ||
@@ -93,22 +108,22 @@ export const EXERCISES = [
   },
   {
     id: "sync",
-    title: "Late-registered candidates",
+    title: "Candidate not on the downloaded list",
     level: "Easy",
     route: "/admin/sync",
     brief:
-      "The central office has registered more candidates after your download. Bring the new data onto this server.",
+      "Candidate NSG26031 is at the centre to write the exam but is not on the candidate list you downloaded. The central office has since added the candidate. Use your mobile hotspot to bring the new candidate data onto this server.",
     prepare: () => stageState("writing"),
     steps: [{ label: "Synchronise the server", match: is("sync") }],
     wrong: (a) => ["reset_server", "end_exam"].includes(a.type),
   },
   {
     id: "close",
-    title: "Close the exam and upload",
+    title: "End the exam and upload the responses",
     level: "Medium",
     route: "/admin/monitor",
     brief:
-      "Exam time is over. End the examination, then upload the results for both sessions.",
+      "The sessions are over. End the examination, then upload the responses of both sessions to the central server.",
     prepare: () => stageState("writing"),
     steps: [
       { label: "End the exam", match: is("end_exam") },
@@ -118,24 +133,43 @@ export const EXERCISES = [
     wrong: (a) => ["reset_server", "reset_candidate"].includes(a.type),
   },
   {
-    id: "fullday",
-    title: "Run the whole exam day",
-    level: "Hard",
-    route: "/admin/upload",
+    id: "newexam",
+    title: "Prepare the server for a new exam",
+    level: "Easy",
+    route: "/admin/reset",
     brief:
-      "You are logged in on a fresh server. Run the exam from start to finish: download, activate the exam and both sessions, end the exam, upload both sessions and finally reset the server for the next exam.",
-    prepare: () => stageState("loggedIn"),
+      "Both sessions have been uploaded to the central server. Clear the finished exam from this server to prepare it for the next exam.",
+    prepare: () => stageState("uploaded"),
+    steps: [{ label: "Reset the server", match: is("reset_server") }],
+    wrong: is("reset_candidate"),
+  },
+  {
+    id: "fullday",
+    title: "Exam day simulation",
+    level: "Hard",
+    route: "/admin",
+    brief: `Run the exam from start to finish. Log in with Server ID ${L.id} and password ${L.password}, download the exam data, then activate the exam and both sessions. While the candidates are writing, candidate NSG26009 has been flagged for infraction and the centre manager wants the flag removed, and candidate NSG26005's computer restarted after a power outage. Then end the exam and upload both sessions.`,
+    prepare: () => ({
+      ...stageState("start"),
+      infractions: [
+        rec("NSG26009", "Switched browser tab", 1),
+        rec("NSG26009", "Left exam window", 2),
+        rec("NSG26009", "Switched browser tab", 3),
+      ],
+    }),
     steps: [
-      { label: "Download exam, candidates and questions", match: is("download") },
+      { label: "Log in with the server login details", match: is("login") },
+      { label: "Download the exam data", match: is("download") },
       { label: "Activate the exam", match: is("activate_exam") },
       { label: "Activate Session 1", match: is("activate_session", { session: "Session 1" }) },
       { label: "Activate Session 2", match: is("activate_session", { session: "Session 2" }) },
+      { label: "Relogin candidate NSG26005", match: is("relogin", { examNo: "NSG26005" }) },
+      { label: "Remove the infraction for NSG26009", match: is("unflag", { examNo: "NSG26009" }) },
       { label: "End the exam", match: is("end_exam") },
       { label: "Upload Session 1", match: is("upload", { session: "Session 1" }) },
       { label: "Upload Session 2", match: is("upload", { session: "Session 2" }) },
-      { label: "Reset the server", match: is("reset_server") },
     ],
-    wrong: is("reset_candidate"),
+    wrong: (a) => ["reset_candidate", "reset_server"].includes(a.type),
   },
 ];
 

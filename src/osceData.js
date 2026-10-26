@@ -66,6 +66,7 @@ export const makeOsceCandidates = (n = 24, start = 1) =>
   });
 
 export const freshOsce = () => ({
+  centreCreated: false, // the centre must be created (needs internet) before the manager can log in
   loggedIn: false,
   online: true,
   downloaded: false,

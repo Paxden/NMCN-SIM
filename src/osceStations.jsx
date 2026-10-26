@@ -238,6 +238,8 @@ function ExComponent({ me, k }) {
   );
 }
 
+// The procedure page: the candidate instructions (left) and the requirements (right) come first,
+// then the search box for scoring candidates.
 function ExProcedure({ me }) {
   const o = useOsce();
   const sess = o.examinerSession;
@@ -265,7 +267,7 @@ function ExProcedure({ me }) {
         <span className={`badge badge-${color}`}>{label}</span>
       </div>
       {me.lead && (
-        <div className="ex-search">
+        <div className="ex-pick">
           <label>Procedure</label>
           <select className="sel" value={key} onChange={(e) => o.patchExaminerSession({ procKey: e.target.value })}>
             <option value="p1">Procedure 1</option>
@@ -274,15 +276,25 @@ function ExProcedure({ me }) {
           </select>
         </div>
       )}
-      <SearchAndScored k={key} />
-      <h4 className="ex-sub">Candidate instructions and requirements</h4>
+
       {details.map((d) => (
         <div className="card ex-detail" key={d.id}>
           <strong>{d.program}: {d.title}</strong>
-          <p className="muted">{d.instructions}</p>
-          <ul className="rules">{d.requirements.map((r) => <li key={r}>{r}</li>)}</ul>
+          <div className="ex-brief">
+            <div>
+              <h5>Candidate instructions</h5>
+              <p>{d.instructions}</p>
+            </div>
+            <div>
+              <h5>Requirements</h5>
+              <ul className="rules">{d.requirements.map((r) => <li key={r}>{r}</li>)}</ul>
+            </div>
+          </div>
         </div>
       ))}
+
+      <h4 className="ex-sub">Score a candidate</h4>
+      <SearchAndScored k={key} />
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useOsce, SERVER_LOGIN } from "./osceStore";
+import { useOsce, SERVER_LOGIN, NO_NET } from "./osceStore";
 import { Link, navigate } from "./router";
 import { ConfirmDialog } from "./components";
 import { Logo } from "./authPages";
@@ -16,25 +16,47 @@ import {
   STATION_ORDER, procedureLabel,
 } from "./osceData";
 import { Bar, componentProgress, useReport } from "./osceShared";
+import { CreateCentre } from "./osceCentre";
 
 // App.jsx imports StationPage from here.
 export { StationPage } from "./osceStations";
 
+// Bottom-left button back to the CAOSCE menu, like the CBT sandbox has.
+function MenuFab() {
+  const { mode } = useTrainer();
+  // Not during the tour or the assessment, where leaving would break the run.
+  if (mode === "tour" || mode === "assessment") return null;
+  return (
+    <button type="button" className="menu-fab" onClick={() => navigate("/osce")}>
+      Menu
+    </button>
+  );
+}
+
 /* ---------- routing ---------- */
 
-// /osce is the CAOSCE trainer menu. The server login is /osce/login.
+// /osce is the CAOSCE trainer menu.
+// The server starts at /osce/createcentre (first time only), then /osce/login, then the dashboard.
+// Which of the two first pages shows depends on whether the centre has been created, not on the address.
 export function OsceRoutes({ path }) {
   const { loggedIn } = useOsce();
+  const { centreCreated } = useOsce();
   useEffect(() => {
-    if (loggedIn && path === "/osce/login") navigate("/osce/dashboard");
+    if (loggedIn && (path === "/osce/login" || path === "/osce/createcentre")) navigate("/osce/dashboard");
   }, [loggedIn, path]);
 
   if (path === "/osce") return <OsceHub />;
   if (path === "/osce/exercises") return <OsceExerciseList />;
   if (path === "/osce/assessment") return <OsceAssessmentPage />;
   if (path === "/osce/assessment/result") return <OsceAssessmentResult />;
-  if (!loggedIn) return <OsceLogin />;
-  if (path === "/osce/login") return null;
+ if (!loggedIn)
+  return (
+    <>
+      {centreCreated ? <OsceLogin /> : <CreateCentre />}
+      <MenuFab />
+    </>
+  );
+  if (path === "/osce/login" || path === "/osce/createcentre") return null;
   return <OsceShell path={path} />;
 }
 
@@ -57,6 +79,7 @@ function OsceLogin() {
         <h2>CAOSCE Server Login</h2>
         <div className="note">
           Sandbox login: Server ID <strong>{SERVER_LOGIN.id}</strong>, password <strong>{SERVER_LOGIN.password}</strong>.
+          Login works without internet.
         </div>
         <label>Server ID</label>
         <input value={id} onChange={(e) => setId(e.target.value)} autoFocus />
@@ -565,7 +588,7 @@ function DownloadPage() {
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const start = () => {
-    if (!o.online) return report({ ok: false, msg: "No internet connection. Connect to the internet and try again." });
+    if (!o.online) return report({ ok: false, msg: NO_NET });
     setPhase(0);
     timers.current = [
       setTimeout(() => setPhase(1), 700),
@@ -582,7 +605,11 @@ function DownloadPage() {
       {!o.downloaded ? (
         <>
           <h2>Download Examination</h2>
-          <p className="muted">Download the examination, its candidates and its procedures from the central server. An internet connection is required.</p>
+          <p className="muted">
+            Download the examination, its candidates and its procedures from the central server. This needs internet:
+            connect the server laptop to your mobile hotspot. Do it before you go to the hall, and do the IP whitelist
+            after it, because a new download clears the whitelist.
+          </p>
           <ul className="dl-list">
             {DL_ITEMS.map((n, i) => (
               <li key={n} className={phase > i ? "done" : phase === i ? "busy" : ""}>
@@ -665,7 +692,7 @@ function SyncPage() {
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const run = () => {
-    if (!o.online) return report({ ok: false, msg: "No internet connection. Connect to the internet and try again." });
+    if (!o.online) return report({ ok: false, msg: NO_NET });
     setBusy(true);
     timer.current = setTimeout(() => {
       report(o.sync());
@@ -676,7 +703,7 @@ function SyncPage() {
   return (
     <div className="card">
       <h2>Synchronize</h2>
-      <p className="muted">Download new data from the central server.</p>
+      <p className="muted">Download new data from the central server. This needs internet: use your mobile hotspot.</p>
       <button className="btn btn-primary" onClick={run} disabled={busy}>{busy ? "Synchronizing..." : "Synchronize"}</button>
     </div>
   );
@@ -705,7 +732,7 @@ function OscePanel() {
             </p>
             <label className="switch">
               <input type="checkbox" checked={o.online} onChange={(e) => o.setOnline(e.target.checked)} />
-              <span>Internet connection: <strong>{o.online ? "Online" : "Offline"}</strong></span>
+              <span>Internet (mobile hotspot): <strong>{o.online ? "Online" : "Offline"}</strong></span>
             </label>
             {!graded && (
               <button className="sim-item" onClick={() => report(o.simAddIps())}>4 more station computers add their IP</button>

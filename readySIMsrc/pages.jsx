@@ -244,7 +244,7 @@ function Infractions() {
       <form className="card inline-form" onSubmit={submit} data-tour="unflag-form">
         <label>Candidate Number</label>
         <input value={no} onChange={(e) => setNo(e.target.value)} placeholder="e.g. NSG26009" />
-        <button className="btn btn-primary" type="submit">Remove Infraction</button>
+        <button className="btn btn-primary" type="submit">Unflag</button>
       </form>
 
       <div className="card table-wrap" data-tour="infraction-list">

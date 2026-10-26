@@ -6,7 +6,12 @@ import {
   makeCandidates,
   stageState,
 } from "./data";
-import { EXERCISES, exerciseProgress, wrongCount } from "./exercises";
+import {
+  CBT_SERVER_LOGIN,
+  EXERCISES,
+  exerciseProgress,
+  wrongCount,
+} from "./exercises";
 import { TOUR_STEPS } from "./tourSteps";
 import {
   STANDARD,
@@ -17,6 +22,14 @@ import {
 } from "./assessment";
 import { navigate } from "./router";
 import { api, hasToken } from "./api";
+import {
+  LETTERS,
+  dropCc,
+  firstUnanswered,
+  seedAnswers,
+  withAnswers,
+  without,
+} from "./candidateData";
 
 const KEY = "cbt-sim-state-v2";
 const PKEY = "cbt-sim-progress-v1";
@@ -52,7 +65,8 @@ function loadProgress() {
 const norm = (v) => (v || "").trim().toUpperCase();
 const ok = (msg) => ({ ok: true, msg });
 const fail = (msg) => ({ ok: false, msg });
-const NO_NET = "No internet connection. Connect to the internet and try again.";
+const NO_NET =
+  "The server system is not connected to the internet. Turn on your mobile hotspot, connect the server system to it and try again.";
 
 export function SimProvider({ children }) {
   const [s, setS] = useState(load);
@@ -93,37 +107,6 @@ export function SimProvider({ children }) {
     const t = setTimeout(() => setToast(null), 3200);
     return () => clearTimeout(t);
   }, [toast]);
-
-  // Candidates keep answering questions while the exam is live (not during the tour).
-  const live = s.mode !== "guide" && s.activated && !s.ended;
-  useEffect(() => {
-    if (!live) return;
-    const t = setInterval(() => {
-      setS((st) => {
-        if (
-          !st.candidates.some(
-            (c) => c.status === "writing" && c.answered < TOTAL_Q,
-          )
-        )
-          return st;
-        return {
-          ...st,
-          candidates: st.candidates.map((c) =>
-            c.status === "writing" && c.answered < TOTAL_Q
-              ? {
-                  ...c,
-                  answered: Math.min(
-                    TOTAL_Q,
-                    c.answered + Math.floor(Math.random() * 4),
-                  ),
-                }
-              : c,
-          ),
-        };
-      });
-    }, 2500);
-    return () => clearInterval(t);
-  }, [live]);
 
   // Detect exercise completion and record the best result.
   useEffect(() => {
@@ -188,37 +171,13 @@ export function SimProvider({ children }) {
     candidates: st.candidates.map((c) => (pred(c) ? fn(c) : c)),
   });
 
-  /* ---------- server / auth ---------- */
-  const createServer = (id, password) => {
-    if (!id.trim() || !password)
-      return fail("Server ID and password are required");
-    setS((st) =>
-      log(
-        {
-          ...freshState(),
-          mode: st.mode,
-          tour: st.tour,
-          exercise: st.exercise,
-          assessment: st.assessment,
-          online: st.online,
-          actions: st.actions,
-          server: { id: id.trim(), password },
-        },
-        "server_created",
-      ),
-    );
-    return ok("Server created");
-  };
-
+  /* ---------- server login (needs internet) ---------- */
   const login = (id, password) => {
-    if (!s.server)
-      return fail(
-        H(
-          "No server has been created yet. Open /createserver first.",
-          "Invalid server ID or password",
-        ),
-      );
-    if (id.trim() !== s.server.id || password !== s.server.password)
+    if (!s.online) return fail(netMsg);
+    if (
+      id.trim() !== CBT_SERVER_LOGIN.id ||
+      password.trim() !== CBT_SERVER_LOGIN.password
+    )
       return fail("Invalid server ID or password");
     setS((st) => log({ ...st, loggedIn: true }, "login"));
     return ok("Login successful");
@@ -280,7 +239,7 @@ export function SimProvider({ children }) {
         mapC(
           { ...st, ended: true },
           (c) => c.status === "writing",
-          (c) => ({ ...c, status: "submitted" }),
+          (c) => ({ ...c, status: "submitted", loggedIn: false }),
         ),
         "end_exam",
       ),
@@ -301,7 +260,7 @@ export function SimProvider({ children }) {
         session,
       }),
     );
-    return ok(`${session} uploaded successfully`);
+    return ok(`${session} responses uploaded to the central server`);
   };
 
   /* ---------- candidates ---------- */
@@ -316,10 +275,13 @@ export function SimProvider({ children }) {
       return fail(`${c.examNo} has already submitted`);
     setS((st) =>
       log(
-        mapC(
-          st,
-          (x) => x.examNo === c.examNo,
-          (x) => ({ ...x, status: "writing" }),
+        dropCc(
+          mapC(
+            st,
+            (x) => x.examNo === c.examNo,
+            (x) => ({ ...x, status: "writing", loggedIn: false }),
+          ),
+          (n) => n === c.examNo,
         ),
         "relogin",
         {
@@ -328,6 +290,29 @@ export function SimProvider({ children }) {
       ),
     );
     return ok(`Candidate ${c.examNo} relogin successful`);
+  };
+
+  // After a power outage or crash that hits every computer: everyone who has not submitted can log in again.
+  const reloginAll = () => {
+    if (!s.activated) return fail("The exam has not been activated");
+    const targets = s.candidates.filter(
+      (c) => s.sessionActive[c.session] && c.status !== "submitted",
+    );
+    if (!targets.length) return fail("There is no candidate to relogin");
+    setS((st) =>
+      log(
+        dropCc(
+          mapC(
+            st,
+            (c) => st.sessionActive[c.session] && c.status !== "submitted",
+            (c) => ({ ...c, status: "writing", loggedIn: false }),
+          ),
+          (n) => targets.some((t) => t.examNo === n),
+        ),
+        "relogin_all",
+      ),
+    );
+    return ok(`${targets.length} candidates can log in again`);
   };
 
   const unflag = (no) => {
@@ -351,6 +336,8 @@ export function SimProvider({ children }) {
     return ok(`Infraction removed for ${c.examNo}`);
   };
 
+  // Resets the candidate's time and question paper. The candidate can log in again straight away,
+  // so no relogin is needed afterwards.
   const resetCandidate = (no) => {
     const c = findCandidate(no);
     if (!c) return fail(`Candidate ${norm(no)} not found`);
@@ -360,15 +347,24 @@ export function SimProvider({ children }) {
           ...mapC(
             st,
             (x) => x.examNo === c.examNo,
-            (x) => ({ ...x, status: "idle", answered: 0 }),
+            (x) => ({
+              ...x,
+              status: st.sessionActive[x.session] ? "writing" : "idle",
+              answered: 0,
+              loggedIn: false,
+            }),
           ),
           infractions: st.infractions.filter((i) => i.examNo !== c.examNo),
+          answers: without(st.answers, c.examNo),
+          cc: st.cc?.examNo === c.examNo ? { examNo: null, q: 1 } : st.cc,
         },
         "reset_candidate",
         { examNo: c.examNo },
       ),
     );
-    return ok(`Candidate ${c.examNo} has been reset`);
+    return ok(
+      `Candidate ${c.examNo} has been reset. The candidate can log in again.`,
+    );
   };
 
   const resetServer = () => {
@@ -384,6 +380,8 @@ export function SimProvider({ children }) {
           candidates: [],
           infractions: [],
           syncCount: 0,
+          answers: {},
+          cc: { examNo: null, q: 1 },
         },
         "reset_server",
       ),
@@ -450,6 +448,152 @@ export function SimProvider({ children }) {
     return ok(`Infraction logged for ${c.examNo}`);
   };
 
+  /* ---------- candidate computer (free play) ----------
+     Everything the candidate does here is saved on the server state, so the Monitor,
+     Infractions, Relogin and Reset pages all reflect it. */
+  const ccCandidate = () => s.candidates.find((c) => c.examNo === s.cc?.examNo);
+
+  const candLogin = (no) => {
+    if (!no.trim()) return fail("Enter your exam number");
+    const c = findCandidate(no);
+    if (!c) return fail("Exam number not found");
+    if (!s.downloaded || !s.activated)
+      return fail("The examination has not started");
+    if (s.ended || c.status === "submitted")
+      return fail("You have already submitted");
+    if (!s.sessionActive[c.session])
+      return fail(`${c.session} has not started yet`);
+    if (c.status !== "writing")
+      return fail("You cannot log in yet. See the invigilator.");
+    if (c.loggedIn)
+      return fail(
+        "This exam number is already logged in. The exam manager must relogin the candidate.",
+      );
+    setS((st) => {
+      const mine = st.answers?.[c.examNo] || seedAnswers(c.answered);
+      return {
+        ...withAnswers(st, c.examNo, mine),
+        candidates: st.candidates.map((x) =>
+          x.examNo === c.examNo
+            ? { ...x, loggedIn: true, answered: Object.keys(mine).length }
+            : x,
+        ),
+        cc: { examNo: c.examNo, q: firstUnanswered(mine) },
+      };
+    });
+    return ok(`Welcome, ${c.name}`);
+  };
+
+  const candGo = (q) =>
+    setS((st) => ({
+      ...st,
+      cc: { ...(st.cc || {}), q: Math.min(TOTAL_Q, Math.max(1, q)) },
+    }));
+
+  const candAnswer = (q, letter) => {
+    const c = ccCandidate();
+    if (!c) return fail("Log in first");
+    if (s.ended || c.status !== "writing")
+      return fail("The exam is no longer open for this candidate");
+    setS((st) =>
+      withAnswers(st, c.examNo, {
+        ...(st.answers?.[c.examNo] || {}),
+        [q]: letter,
+      }),
+    );
+    return ok("Saved");
+  };
+
+  const candAnswerNext = (n = 10) => {
+    const c = ccCandidate();
+    if (!c) return fail("Log in first");
+    if (s.ended || c.status !== "writing")
+      return fail("The exam is no longer open for this candidate");
+    const done = s.answers?.[c.examNo] || {};
+    if (Object.keys(done).length >= TOTAL_Q)
+      return fail("Every question is already answered");
+    setS((st) => {
+      const mine = { ...(st.answers?.[c.examNo] || {}) };
+      let added = 0;
+      for (let q = 1; q <= TOTAL_Q && added < n; q++)
+        if (!mine[q]) {
+          mine[q] = LETTERS[(q * 5) % 4];
+          added++;
+        }
+      return withAnswers(st, c.examNo, mine);
+    });
+    return ok(`Answered the next ${n} questions`);
+  };
+
+  const candSubmit = () => {
+    const c = ccCandidate();
+    if (!c) return fail("Log in first");
+    setS((st) => ({
+      ...mapC(
+        st,
+        (x) => x.examNo === c.examNo,
+        (x) => ({ ...x, status: "submitted", loggedIn: false }),
+      ),
+    }));
+    return ok("Your exam has been submitted");
+  };
+
+  const candInfraction = (reason) => {
+    const c = ccCandidate();
+    if (!c) return fail("Log in first");
+    setS((st) => ({
+      ...st,
+      infractions: [
+        ...st.infractions,
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          examNo: c.examNo,
+          reason,
+          at: Date.now(),
+        },
+      ],
+    }));
+    return ok(`Infraction recorded for ${c.examNo}`);
+  };
+
+  // The computer goes blank. The server still thinks the candidate is logged in until the manager does a relogin.
+  const candCrash = () => {
+    setS((st) => ({ ...st, cc: { examNo: null, q: 1 } }));
+    return ok(
+      "The candidate computer crashed. The server still shows the candidate as logged in.",
+    );
+  };
+
+  // Client-side only: back to the login screen (after submit, or when the session is closed).
+  const candLeave = () => setS((st) => ({ ...st, cc: { examNo: null, q: 1 } }));
+
+  // Other candidates in the hall: an explicit tool, not an automatic counter.
+  const simAnswerSome = () => {
+    const ids = s.candidates
+      .filter(
+        (c) =>
+          c.status === "writing" &&
+          c.answered < TOTAL_Q &&
+          !s.answers?.[c.examNo],
+      )
+      .map((c) => c.examNo);
+    if (!ids.length) return fail("No other candidate is writing");
+    setS((st) =>
+      mapC(
+        st,
+        (c) => ids.includes(c.examNo),
+        (c) => ({
+          ...c,
+          answered: Math.min(
+            TOTAL_Q,
+            c.answered + 5 + Math.floor(Math.random() * 11),
+          ),
+        }),
+      ),
+    );
+    return ok(`${ids.length} other candidates answered more questions`);
+  };
+
   /* ---------- modes ---------- */
   const goMenu = () => {
     if (s.mode === "guide") setS((st) => ({ ...st, mode: "menu", tour: null }));
@@ -461,18 +605,16 @@ export function SimProvider({ children }) {
 
   const startFree = () => {
     if (s.mode === "free") {
-      navigate(
-        s.loggedIn ? "/admin/home" : s.server ? "/admin" : "/createserver",
-      );
+      navigate(s.loggedIn ? "/admin/home" : "/admin");
       return;
     }
     setS({ ...freshState(), mode: "free" });
-    navigate("/createserver");
+    navigate("/admin");
   };
 
   const wipeSandbox = () => {
     setS({ ...freshState(), mode: "free" });
-    navigate("/createserver");
+    navigate("/admin");
   };
 
   const goStep = (n) => {
@@ -519,9 +661,7 @@ export function SimProvider({ children }) {
         phase: "task",
       },
     });
-    navigate(
-      st.loggedIn ? "/admin/home" : st.server ? "/admin" : "/createserver",
-    );
+    navigate(st.loggedIn ? "/admin/home" : "/admin");
   };
 
   // Signed in: the backend creates the attempt and chooses the seed.
@@ -653,7 +793,6 @@ export function SimProvider({ children }) {
     progress,
     toast,
     showToast,
-    createServer,
     login,
     logout,
     setOnline,
@@ -663,12 +802,22 @@ export function SimProvider({ children }) {
     endExam,
     uploadSession,
     relogin,
+    reloginAll,
     unflag,
     resetCandidate,
     resetServer,
     sync,
     simSubmitSome,
     simInfraction,
+    candLogin,
+    candGo,
+    candAnswer,
+    candAnswerNext,
+    candSubmit,
+    candInfraction,
+    candCrash,
+    candLeave,
+    simAnswerSome,
     goMenu,
     adoptFree,
     startFree,

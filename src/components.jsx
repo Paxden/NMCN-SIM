@@ -15,16 +15,34 @@ export function Toast() {
   );
 }
 
-export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", danger, onConfirm, onCancel }) {
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = "Confirm",
+  danger,
+  onConfirm,
+  onCancel,
+}) {
   if (!open) return null;
   return (
     <div className="overlay" onClick={onCancel}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="dialog"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <h3>{title}</h3>
         <p>{message}</p>
         <div className="dialog-actions">
-          <button className="btn btn-light" onClick={onCancel}>Cancel</button>
-          <button className={`btn ${danger ? "btn-danger" : "btn-primary"}`} onClick={onConfirm}>
+          <button className="btn btn-light" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </button>
         </div>
@@ -36,7 +54,9 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
 export function MenuButton() {
   const { goMenu } = useSim();
   return (
-    <button className="menu-fab" onClick={goMenu}>&larr; Menu</button>
+    <button className="menu-fab" onClick={goMenu}>
+      &larr; Menu
+    </button>
   );
 }
 
@@ -44,8 +64,14 @@ function NetworkSwitch() {
   const { online, setOnline } = useSim();
   return (
     <label className="switch">
-      <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
-      <span>Internet connection: <strong>{online ? "Online" : "Offline"}</strong></span>
+      <input
+        type="checkbox"
+        checked={online}
+        onChange={(e) => setOnline(e.target.checked)}
+      />
+      <span>
+        Internet connection: <strong>{online ? "Online" : "Offline"}</strong>
+      </span>
     </label>
   );
 }
@@ -66,28 +92,45 @@ export function FreePanel() {
         <div className="sim-panel">
           <div className="sim-head">
             <strong>Free play tools</strong>
-            <button className="icon-btn" onClick={() => setOpen(false)} aria-label="Close">×</button>
+            <button
+              className="icon-btn"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+            >
+              X
+            </button>
           </div>
           <div className="sim-body">
             <p className="hint">
-              This is a sandbox. Candidates log in by themselves when you activate a session, and they
-              keep answering questions. These tools stand in for other things that happen at the centre.
+              This is a sandbox. Use the Candidate computer on the right to log
+              in as a candidate and answer questions, and what you do shows on
+              the Monitor page. These tools stand in for other things that
+              happen at the centre.
             </p>
             <NetworkSwitch />
-            <button className="sim-item" onClick={() => run(sim.simSubmitSome)}>5 candidates submit</button>
-            <button className="sim-item" onClick={() => run(sim.simInfraction)}>A random candidate commits an infraction</button>
-            <button className="sim-item danger" onClick={sim.wipeSandbox}>Wipe sandbox and start over</button>
+            <button className="sim-item" onClick={() => run(sim.simSubmitSome)}>
+              5 candidates submit
+            </button>
+            <button className="sim-item" onClick={() => run(sim.simInfraction)}>
+              A random candidate commits an infraction
+            </button>
+            <button className="sim-item danger" onClick={sim.wipeSandbox}>
+              Wipe sandbox and start over
+            </button>
           </div>
         </div>
       )}
-      <button className="sim-fab" onClick={() => setOpen((o) => !o)}>Free play tools</button>
+      <button className="sim-fab" onClick={() => setOpen((o) => !o)}>
+        Free play tools
+      </button>
     </div>
   );
 }
 
 /* ---------- exercises ---------- */
 
-const fmt = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+const fmt = (sec) =>
+  `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 
 export function ExercisePanel() {
   const { exercise, actions, startExercise } = useSim();
@@ -110,7 +153,9 @@ export function ExercisePanel() {
   if (!def) return null;
   const done = exerciseProgress(def, actions);
   const mistakes = (exercise.errors || 0) + wrongCount(def, actions);
-  const elapsed = Math.round(((exercise.finishedAt || Date.now()) - exercise.startedAt) / 1000);
+  const elapsed = Math.round(
+    ((exercise.finishedAt || Date.now()) - exercise.startedAt) / 1000,
+  );
   const finished = !!exercise.finishedAt;
 
   return (
@@ -119,7 +164,13 @@ export function ExercisePanel() {
         <aside className="task-dock">
           <div className="sim-head">
             <strong>Task</strong>
-            <button className="icon-btn" onClick={() => setOpen(false)} aria-label="Hide">×</button>
+            <button
+              className="icon-btn"
+              onClick={() => setOpen(false)}
+              aria-label="Hide"
+            >
+              ×
+            </button>
           </div>
           <div className="sim-body">
             <div className="sim-active">
@@ -127,20 +178,35 @@ export function ExercisePanel() {
               <p>{def.brief}</p>
               <ol className="steps">
                 {def.steps.map((st, i) => (
-                  <li key={i} className={i < done ? "done" : i === done ? "next" : ""}>
+                  <li
+                    key={i}
+                    className={i < done ? "done" : i === done ? "next" : ""}
+                  >
                     {st.label}
                   </li>
                 ))}
               </ol>
               <div className="meta-row">
                 <span>Time {fmt(elapsed)}</span>
-                <span className={mistakes ? "bad" : ""}>Mistakes {mistakes}</span>
+                <span className={mistakes ? "bad" : ""}>
+                  Mistakes {mistakes}
+                </span>
               </div>
             </div>
             {def.network && <NetworkSwitch />}
             <div className="row-gap">
-              <button className="btn btn-light btn-sm" onClick={() => startExercise(def.id)}>Restart</button>
-              <button className="btn btn-light btn-sm" onClick={() => navigate("/exercises")}>All exercises</button>
+              <button
+                className="btn btn-light btn-sm"
+                onClick={() => startExercise(def.id)}
+              >
+                Restart
+              </button>
+              <button
+                className="btn btn-light btn-sm"
+                onClick={() => navigate("/exercises")}
+              >
+                All exercises
+              </button>
             </div>
           </div>
         </aside>
@@ -155,23 +221,41 @@ export function ExercisePanel() {
       {finished && (
         <div className="overlay">
           <div className="dialog result">
-            <div className="result-badge"><IconCheck size={28} /></div>
+            <div className="result-badge">
+              <IconCheck size={28} />
+            </div>
             <h3>Exercise complete</h3>
             <p className="muted">{def.title}</p>
             <div className="result-stats">
-              <div><strong>{fmt(elapsed)}</strong><span>Time</span></div>
-              <div><strong>{mistakes}</strong><span>Mistakes</span></div>
+              <div>
+                <strong>{fmt(elapsed)}</strong>
+                <span>Time</span>
+              </div>
+              <div>
+                <strong>{mistakes}</strong>
+                <span>Mistakes</span>
+              </div>
             </div>
             <p>
               {mistakes === 0
                 ? "Clean run. No mistakes."
                 : mistakes <= 2
-                ? "Well done. Try again for a run with no mistakes."
-                : "Completed, but there were several mistakes. Replay the guided tour or try again."}
+                  ? "Well done. Try again for a run with no mistakes."
+                  : "Completed, but there were several mistakes. Replay the guided tour or try again."}
             </p>
             <div className="dialog-actions">
-              <button className="btn btn-light" onClick={() => startExercise(def.id)}>Try again</button>
-              <button className="btn btn-primary" onClick={() => navigate("/exercises")}>Back to exercises</button>
+              <button
+                className="btn btn-light"
+                onClick={() => startExercise(def.id)}
+              >
+                Try again
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate("/exercises")}
+              >
+                Back to exercises
+              </button>
             </div>
           </div>
         </div>
@@ -198,19 +282,25 @@ export function AssessmentPanel() {
     if (!inTask) return;
     const t = setInterval(() => {
       tick((x) => x + 1);
-      if (Date.now() - a.taskStartedAt >= task.timeLimit * 1000) finishTask(true);
+      if (Date.now() - a.taskStartedAt >= task.timeLimit * 1000)
+        finishTask(true);
     }, 500);
     return () => clearInterval(t);
   }, [inTask, a.index, a.taskStartedAt]);
 
-  const remaining = Math.max(0, task.timeLimit - Math.floor((Date.now() - a.taskStartedAt) / 1000));
+  const remaining = Math.max(
+    0,
+    task.timeLimit - Math.floor((Date.now() - a.taskStartedAt) / 1000),
+  );
 
   return (
     <>
       <aside className="task-dock">
         <div className="sim-head">
           <strong>Assessment</strong>
-          <span>Task {a.index + 1} of {TASK_COUNT}</span>
+          <span>
+            Task {a.index + 1} of {TASK_COUNT}
+          </span>
         </div>
         <div className="sim-body">
           <div className={`timer ${inTask && remaining <= 30 ? "warn" : ""}`}>
@@ -230,7 +320,10 @@ export function AssessmentPanel() {
           >
             Finish task
           </button>
-          <button className="tour-skip abandon" onClick={() => setConfirm("abandon")}>
+          <button
+            className="tour-skip abandon"
+            onClick={() => setConfirm("abandon")}
+          >
             Abandon assessment
           </button>
         </div>
@@ -263,11 +356,19 @@ export function AssessmentPanel() {
       {a.phase === "between" && (
         <div className="overlay">
           <div className="dialog result">
-            <div className="result-badge"><IconCheck size={28} /></div>
-            <h3>Task {a.index + 1} of {TASK_COUNT} recorded</h3>
-            <p className="muted">Your results are shown at the end of the assessment.</p>
+            <div className="result-badge">
+              <IconCheck size={28} />
+            </div>
+            <h3>
+              Task {a.index + 1} of {TASK_COUNT} recorded
+            </h3>
+            <p className="muted">
+              Your results are shown at the end of the assessment.
+            </p>
             <div className="dialog-actions">
-              <button className="btn btn-primary" onClick={nextTask}>Start task {a.index + 2}</button>
+              <button className="btn btn-primary" onClick={nextTask}>
+                Start task {a.index + 2}
+              </button>
             </div>
           </div>
         </div>

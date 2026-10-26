@@ -1,64 +1,103 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSim } from "./store";
 import { Link, navigate } from "./router";
 import { EXAM } from "./data";
 import { ConfirmDialog } from "./components";
 
-/* ---------- pre-admin pages ---------- */
-
-export function CreateServer() {
-  const { createServer, showToast } = useSim();
-  const [id, setId] = useState("");
-  const [pw, setPw] = useState("");
-
-  const submit = (e) => {
-    e.preventDefault();
-    const r = createServer(id, pw);
-    if (!r.ok) return showToast(r.msg, "error");
-    showToast("Server created successfully");
-    navigate("/admin");
-  };
-
-  return (
-    <div className="center-page">
-      <form className="card auth" onSubmit={submit}>
-        <h2>Create Server</h2>
-        <label>Server ID</label>
-        <input value={id} onChange={(e) => setId(e.target.value)} autoFocus />
-        <label>Password</label>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
-        <button className="btn btn-primary block" type="submit">Create</button>
-      </form>
-    </div>
-  );
-}
+/* ---------- pre-admin: connect to exam server over the internet ---------- */
 
 export function Login() {
   const { login, server, showToast } = useSim();
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [online, setOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
 
-  const submit = (e) => {
+  // Track internet availability live
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
+  // Already logged in? Skip straight to admin.
+  useEffect(() => {
+    if (server?.id) navigate("/admin");
+  }, [server?.id]);
+
+  const submit = async (e) => {
     e.preventDefault();
-    const r = login(id, pw);
-    if (!r.ok) return showToast(r.msg, "error");
-    showToast("Login successful");
+    if (!online) {
+      return showToast(
+        "No internet connection. Check your network and try again.",
+        "error",
+      );
+    }
+    if (!id.trim() || !pw) {
+      return showToast("Enter the server ID and password", "error");
+    }
+    setBusy(true);
+    try {
+      // login() is now async and hits the remote API (see store changes below)
+      const r = await login(id.trim(), pw);
+      if (!r.ok) {
+        showToast(r.msg || "Login failed", "error");
+        return;
+      }
+      showToast("Connected to exam server");
+      navigate("/admin");
+    } catch (err) {
+      showToast(err?.message || "Could not reach the server", "error");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div className="center-page">
       <form className="card auth" onSubmit={submit}>
-        <h2>Admin Login</h2>
-        {!server && (
-          <div className="note">
-            No server yet. <Link to="/createserver">Create one first</Link>.
-          </div>
-        )}
+        <h2>Connect to Exam Server</h2>
+
+        <div className={`conn-status ${online ? "online" : "offline"}`}>
+          <span className="dot" />
+          {online
+            ? "Online — ready to connect"
+            : "Offline — no internet connection"}
+        </div>
+
         <label>Server ID</label>
-        <input value={id} onChange={(e) => setId(e.target.value)} autoFocus />
+        <input
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+          autoFocus
+          disabled={busy}
+          placeholder="e.g. CBT-001"
+        />
         <label>Password</label>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
-        <button className="btn btn-primary block" type="submit">Login</button>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          disabled={busy}
+        />
+        <button
+          className="btn btn-primary block"
+          type="submit"
+          disabled={busy || !online}
+        >
+          {busy ? "Connecting…" : "Login"}
+        </button>
+        <p className="note">
+          Use the credentials supplied by your exam administrator. You need an
+          internet connection to reach the server.
+        </p>
       </form>
     </div>
   );
@@ -77,6 +116,14 @@ const NAV = [
 
 export function AdminShell({ path }) {
   const { server, logout } = useSim();
+
+  // Kick unauthenticated visitors back to login
+  useEffect(() => {
+    if (!server?.id) navigate("/login");
+  }, [server?.id]);
+
+  if (!server?.id) return null; // avoid flashing "Server ID: undefined"
+
   let page;
   if (path === "/admin" || path === "/admin/home") page = <Home />;
   else if (path === "/admin/manage") page = <Manage />;
@@ -87,7 +134,12 @@ export function AdminShell({ path }) {
   else if (path === "/admin/reset") page = <Reset />;
   else page = <div className="card">Page not found.</div>;
 
-  const current = path === "/admin" ? "/admin/home" : path.startsWith("/admin/monitor") ? "/admin/monitor" : path;
+  const current =
+    path === "/admin"
+      ? "/admin/home"
+      : path.startsWith("/admin/monitor")
+        ? "/admin/monitor"
+        : path;
 
   return (
     <>
@@ -100,14 +152,22 @@ export function AdminShell({ path }) {
             </Link>
           ))}
         </div>
-        <button className="btn btn-light btn-sm" onClick={logout}>Logout</button>
+        <button
+          className="btn btn-light btn-sm"
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
+        >
+          Logout
+        </button>
       </nav>
       <main className="container">{page}</main>
     </>
   );
 }
 
-/* ---------- pages ---------- */
+/* ---------- pages (unchanged) ---------- */
 
 function statusLabel({ activated, ended }) {
   if (!activated) return ["Not activated", "gray"];
@@ -128,18 +188,32 @@ function Home() {
 }
 
 function Monitor() {
-  const { candidates, infractions, activated, ended, endExam, showToast } = useSim();
+  const { candidates, infractions, activated, ended, endExam, showToast } =
+    useSim();
   const [confirm, setConfirm] = useState(false);
   const writing = candidates.filter((c) => c.status === "writing").length;
   const submitted = candidates.filter((c) => c.status === "submitted").length;
 
   return (
     <>
-      {!activated && <div className="note">The exam has not been activated. Activate it from Download and Upload.</div>}
+      {!activated && (
+        <div className="note">
+          The exam has not been activated. Activate it from Download and Upload.
+        </div>
+      )}
       <div className="stats">
-        <div className="stat"><div className="stat-label">Total candidate</div><div className="stat-num">{candidates.length}</div></div>
-        <div className="stat"><div className="stat-label">Writing</div><div className="stat-num">{writing}</div></div>
-        <div className="stat"><div className="stat-label">Submitted</div><div className="stat-num">{submitted}</div></div>
+        <div className="stat">
+          <div className="stat-label">Total candidate</div>
+          <div className="stat-num">{candidates.length}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Writing</div>
+          <div className="stat-num">{writing}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Submitted</div>
+          <div className="stat-num">{submitted}</div>
+        </div>
         <Link to="/admin/monitor/infractions" className="stat clickable">
           <div className="stat-label">Infraction</div>
           <div className="stat-num">{infractions.length}</div>
@@ -159,7 +233,12 @@ function Monitor() {
       <div className="card table-wrap">
         <table>
           <thead>
-            <tr><th>Exam No</th><th>Name</th><th>Session</th><th>Submitted</th></tr>
+            <tr>
+              <th>Exam No</th>
+              <th>Name</th>
+              <th>Session</th>
+              <th>Submitted</th>
+            </tr>
           </thead>
           <tbody>
             {candidates.map((c) => (
@@ -168,7 +247,9 @@ function Monitor() {
                 <td>{c.name}</td>
                 <td>{c.session}</td>
                 <td>
-                  <span className={`badge badge-${c.status === "submitted" ? "green" : "gray"}`}>
+                  <span
+                    className={`badge badge-${c.status === "submitted" ? "green" : "gray"}`}
+                  >
                     {c.status === "submitted" ? "Yes" : "No"}
                   </span>
                 </td>
@@ -203,7 +284,7 @@ function Infractions() {
     infractions.reduce((acc, i) => {
       (acc[i.examNo] ||= { examNo: i.examNo, items: [] }).items.push(i);
       return acc;
-    }, {})
+    }, {}),
   );
   const nameOf = (x) => candidates.find((c) => c.examNo === x)?.name || "";
 
@@ -216,11 +297,19 @@ function Infractions() {
 
   return (
     <>
-      <p><Link to="/admin/monitor">&larr; Back to Monitor</Link></p>
+      <p>
+        <Link to="/admin/monitor">&larr; Back to Monitor</Link>
+      </p>
       <form className="card inline-form" onSubmit={submit}>
         <label>Candidate Number</label>
-        <input value={no} onChange={(e) => setNo(e.target.value)} placeholder="e.g. NSG26009" />
-        <button className="btn btn-primary" type="submit">Remove Infraction</button>
+        <input
+          value={no}
+          onChange={(e) => setNo(e.target.value)}
+          placeholder="e.g. NSG26009"
+        />
+        <button className="btn btn-primary" type="submit">
+          Unflag
+        </button>
       </form>
 
       <div className="card table-wrap">
@@ -229,13 +318,22 @@ function Infractions() {
           <p className="muted">No infractions recorded.</p>
         ) : (
           <table>
-            <thead><tr><th>Exam No</th><th>Name</th><th>Count</th><th>Details</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Exam No</th>
+                <th>Name</th>
+                <th>Count</th>
+                <th>Details</th>
+              </tr>
+            </thead>
             <tbody>
               {grouped.map((g) => (
                 <tr key={g.examNo}>
                   <td>{g.examNo}</td>
                   <td>{nameOf(g.examNo)}</td>
-                  <td><span className="badge badge-red">{g.items.length}</span></td>
+                  <td>
+                    <span className="badge badge-red">{g.items.length}</span>
+                  </td>
                   <td>{g.items.map((i) => i.reason).join(", ")}</td>
                 </tr>
               ))}
@@ -261,8 +359,14 @@ function Manage() {
   return (
     <form className="card inline-form" onSubmit={submit}>
       <label>Relogin Candidate</label>
-      <input value={no} onChange={(e) => setNo(e.target.value)} placeholder="Candidate exam number" />
-      <button className="btn btn-primary" type="submit">Relogin</button>
+      <input
+        value={no}
+        onChange={(e) => setNo(e.target.value)}
+        placeholder="Candidate exam number"
+      />
+      <button className="btn btn-primary" type="submit">
+        Relogin
+      </button>
     </form>
   );
 }
@@ -292,15 +396,32 @@ function Synchronise() {
 }
 
 function UploadDownload() {
-  const { candidates, activated, ended, uploaded, activateExam, uploadSession, showToast } = useSim();
+  const {
+    candidates,
+    activated,
+    ended,
+    uploaded,
+    activateExam,
+    uploadSession,
+    showToast,
+  } = useSim();
   const [details, setDetails] = useState(false);
 
   return (
     <>
       <div className="card">
         <h2>{EXAM.name}</h2>
-        <p>Number of candidates: <strong>{candidates.length}</strong></p>
-        <button className="btn btn-primary" onClick={() => { activateExam(); showToast("Exam activated"); }} disabled={activated}>
+        <p>
+          Number of candidates: <strong>{candidates.length}</strong>
+        </p>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            activateExam();
+            showToast("Exam activated");
+          }}
+          disabled={activated}
+        >
           {activated ? "Exam Activated" : "Activate Exam"}
         </button>
       </div>
@@ -308,7 +429,12 @@ function UploadDownload() {
       {activated && (
         <div className="card">
           <h3>Active sessions</h3>
-          {!ended && <p className="muted">Upload becomes available after the exam has been ended on the Monitor page.</p>}
+          {!ended && (
+            <p className="muted">
+              Upload becomes available after the exam has been ended on the
+              Monitor page.
+            </p>
+          )}
           {EXAM.sessions.map((session) => (
             <div className="row" key={session}>
               <button
@@ -321,7 +447,14 @@ function UploadDownload() {
               >
                 {uploaded[session] ? "Uploaded" : "Upload"}
               </button>
-              <a href="#details" className="link" onClick={(e) => { e.preventDefault(); setDetails(true); }}>
+              <a
+                href="#details"
+                className="link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setDetails(true);
+                }}
+              >
                 {EXAM.name}
               </a>
               <span className="badge badge-green">{session} Active</span>
@@ -336,11 +469,18 @@ function UploadDownload() {
             <h3>{EXAM.name}</h3>
             {EXAM.sessions.map((session) => (
               <p key={session}>
-                {session}: {candidates.filter((c) => c.session === session).length} candidates
+                {session}:{" "}
+                {candidates.filter((c) => c.session === session).length}{" "}
+                candidates
               </p>
             ))}
             <div className="dialog-actions">
-              <button className="btn btn-light" onClick={() => setDetails(false)}>Close</button>
+              <button
+                className="btn btn-light"
+                onClick={() => setDetails(false)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -356,7 +496,8 @@ function Reset() {
 
   const askCandidate = (e) => {
     e.preventDefault();
-    if (!no.trim()) return showToast("Enter the candidate exam number", "error");
+    if (!no.trim())
+      return showToast("Enter the candidate exam number", "error");
     setDlg("candidate");
   };
 
@@ -364,14 +505,24 @@ function Reset() {
     <>
       <form className="card inline-form" onSubmit={askCandidate}>
         <label>Reset Candidate</label>
-        <input value={no} onChange={(e) => setNo(e.target.value)} placeholder="Candidate exam number" />
-        <button className="btn btn-warning" type="submit">Reset Candidate</button>
+        <input
+          value={no}
+          onChange={(e) => setNo(e.target.value)}
+          placeholder="Candidate exam number"
+        />
+        <button className="btn btn-warning" type="submit">
+          Reset Candidate
+        </button>
       </form>
 
       <div className="card">
         <h3>Reset Server</h3>
-        <p className="muted">Clears all candidate progress and infractions on this server.</p>
-        <button className="btn btn-danger" onClick={() => setDlg("server")}>Reset Server</button>
+        <p className="muted">
+          Clears all candidate progress and infractions on this server.
+        </p>
+        <button className="btn btn-danger" onClick={() => setDlg("server")}>
+          Reset Server
+        </button>
       </div>
 
       <ConfirmDialog

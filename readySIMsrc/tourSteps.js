@@ -111,7 +111,7 @@ export const TOUR_STEPS = [
     stage: "flagged",
     target: "unflag-form",
     title: "Remove an infraction",
-    text: "If a candidate was flagged by mistake, type their exam number and click Remove Infraction to clear it.",
+    text: "If a candidate was flagged by mistake, type their exam number and click Unflag to clear it.",
   },
   {
     route: "/admin/monitor/infractions",

@@ -1,51 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useSim } from "./store";
-import { Link, navigate } from "./router";
+import { Link } from "./router";
 import { EXAM, TOTAL_Q } from "./data";
+import { CBT_SERVER_LOGIN } from "./exercises";
 import { ConfirmDialog } from "./components";
 import { IconCheck, IconCross, IconDownload, IconUpload } from "./icons";
 
-/* ---------- pre-admin pages ---------- */
+// The address of the computer a candidate is writing on (shown on the Monitor page).
+const ipOf = (c) =>
+  c.status === "idle" ? "-" : `192.168.1.${10 + (parseInt(c.examNo.slice(-3), 10) % 200)}`;
 
-export function CreateServer() {
-  const { createServer, showToast } = useSim();
-  const [id, setId] = useState("");
-  const [pw, setPw] = useState("");
-
-  const submit = (e) => {
-    e.preventDefault();
-    const r = createServer(id, pw);
-    if (!r.ok) return showToast(r.msg, "error");
-    showToast("Server created successfully");
-    navigate("/admin");
-  };
-
-  return (
-    <div className="center-page">
-      <form className="card auth" onSubmit={submit} data-tour="create-form">
-        <h2>Create Server</h2>
-        <label>Server ID</label>
-        <input value={id} onChange={(e) => setId(e.target.value)} autoFocus />
-        <label>Password</label>
-        <input
-          type="password"
-          value={pw}
-          onChange={(e) => setPw(e.target.value)}
-        />
-        <button
-          className="btn btn-primary block"
-          type="submit"
-          data-tour="create-btn"
-        >
-          Create
-        </button>
-      </form>
-    </div>
-  );
-}
+/* ---------- server login (the first page of the CBT server) ---------- */
 
 export function Login() {
-  const { login, server, showToast, mode } = useSim();
+  const { login, showToast, mode } = useSim();
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
 
@@ -59,10 +27,11 @@ export function Login() {
   return (
     <div className="center-page">
       <form className="card auth" onSubmit={submit} data-tour="login-form">
-        <h2>Admin Login</h2>
-        {!server && mode !== "assessment" && (
+        <h2>Server Login</h2>
+        {mode !== "assessment" && (
           <div className="note">
-            No server yet. <Link to="/createserver">Create one first</Link>.
+            Sandbox login: Server ID <strong>{CBT_SERVER_LOGIN.id}</strong>, password{" "}
+            <strong>{CBT_SERVER_LOGIN.password}</strong>. The server system needs an internet connection to log in.
           </div>
         )}
         <label>Server ID</label>
@@ -73,7 +42,7 @@ export function Login() {
           value={pw}
           onChange={(e) => setPw(e.target.value)}
         />
-        <button className="btn btn-primary block" type="submit">
+        <button className="btn btn-primary block" type="submit" data-tour="login-btn">
           Login
         </button>
       </form>
@@ -93,7 +62,7 @@ const NAV = [
 ];
 
 export function AdminShell({ path }) {
-  const { server, logout } = useSim();
+  const { logout } = useSim();
   let page;
   if (path === "/admin" || path === "/admin/home") page = <Home />;
   else if (path === "/admin/manage") page = <Manage />;
@@ -114,10 +83,15 @@ export function AdminShell({ path }) {
   return (
     <>
       <nav className="navbar" data-tour="navbar">
-        <span className="brand">Server ID: {server?.id}</span>
+        <span className="brand">Server ID: {CBT_SERVER_LOGIN.id}</span>
         <div className="nav-links">
           {NAV.map(([to, label]) => (
-            <Link key={to} to={to} className={current === to ? "active" : ""}>
+            <Link
+              key={to}
+              to={to}
+              className={current === to ? "active" : ""}
+              data-tour={`nav-${to.split("/").pop()}`}
+            >
               {label}
             </Link>
           ))}
@@ -126,7 +100,9 @@ export function AdminShell({ path }) {
           Logout
         </button>
       </nav>
-      <main className="container">{page}</main>
+      <main className="container" data-tour="page">
+        {page}
+      </main>
     </>
   );
 }
@@ -206,7 +182,7 @@ function Monitor() {
         <Link
           to="/admin/monitor/infractions"
           className="stat clickable"
-          data-tour="infraction-card"
+          data-tour="infraction-btn"
         >
           <div className="stat-label">Infraction</div>
           <div className="stat-num">{infractions.length}</div>
@@ -230,14 +206,15 @@ function Monitor() {
             <tr>
               <th>Exam No</th>
               <th>Name</th>
-              <th>Session</th>
+              <th>Response</th>
+              <th>IP Address</th>
               <th>Submitted</th>
             </tr>
           </thead>
           <tbody>
             {candidates.length === 0 && (
               <tr>
-                <td colSpan={4} className="muted">
+                <td colSpan={5} className="muted">
                   No candidates yet.
                 </td>
               </tr>
@@ -249,6 +226,7 @@ function Monitor() {
                 <td className="num">
                   {c.answered}/{TOTAL_Q}
                 </td>
+                <td>{ipOf(c)}</td>
                 <td>
                   {c.status === "submitted" ? (
                     <span className="mark mark-yes" title="Submitted">
@@ -325,7 +303,7 @@ function Infractions() {
           placeholder="e.g. NSG26009"
         />
         <button className="btn btn-primary" type="submit">
-          Remove Infraction
+          Unflag
         </button>
       </form>
 
@@ -363,8 +341,9 @@ function Infractions() {
 }
 
 function Manage() {
-  const { relogin, showToast } = useSim();
+  const { relogin, reloginAll, showToast } = useSim();
   const [no, setNo] = useState("");
+  const [ask, setAsk] = useState(false);
 
   const submit = (e) => {
     e.preventDefault();
@@ -374,21 +353,47 @@ function Manage() {
   };
 
   return (
-    <form
-      className="card inline-form stacked"
-      onSubmit={submit}
-      data-tour="relogin-form"
-    >
-      <label>Relogin Candidate</label>
-      <input
-        value={no}
-        onChange={(e) => setNo(e.target.value)}
-        placeholder="Candidate exam number"
+    <>
+      <form
+        className="card inline-form stacked"
+        onSubmit={submit}
+        data-tour="relogin-form"
+      >
+        <label>Relogin Candidate</label>
+        <input
+          value={no}
+          onChange={(e) => setNo(e.target.value)}
+          placeholder="Candidate exam number"
+        />
+        <button className="btn btn-primary" type="submit">
+          Relogin
+        </button>
+      </form>
+
+      <div className="card" data-tour="relogin-all">
+        <h3>Relogin All Candidates</h3>
+        <p className="muted">
+          When a crash or power outage affects every computer, let all candidates who have not
+          submitted log in again at once.
+        </p>
+        <button className="btn btn-warning" onClick={() => setAsk(true)}>
+          Relogin All
+        </button>
+      </div>
+
+      <ConfirmDialog
+        open={ask}
+        title="Relogin all candidates?"
+        message="Every candidate who has not submitted will be able to log in again and continue."
+        confirmLabel="Relogin All"
+        onCancel={() => setAsk(false)}
+        onConfirm={() => {
+          setAsk(false);
+          const r = reloginAll();
+          showToast(r.msg, r.ok ? "success" : "error");
+        }}
       />
-      <button className="btn btn-primary" type="submit">
-        Relogin
-      </button>
-    </form>
+    </>
   );
 }
 
@@ -434,7 +439,6 @@ function UploadDownload() {
     activated,
     ended,
     sessionActive,
-    uploaded,
     download,
     activateExam,
     activateSession,
@@ -474,7 +478,7 @@ function UploadDownload() {
             <p className="muted">
               Download the examination, its candidates and its questions from
               the central server.
-              {hints && " An internet connection is required."}
+              {hints && " The server system needs internet: connect your mobile hotspot to it."}
             </p>
             <ul className="dl-list">
               {DL_ITEMS.map((n, i) => (
@@ -534,7 +538,6 @@ function UploadDownload() {
           )}
           {EXAM.sessions.map((session, i) => {
             const active = !!sessionActive[session];
-            const done = !!uploaded[session];
             return (
               <div className="row" key={session}>
                 <a
@@ -558,10 +561,10 @@ function UploadDownload() {
                 <button
                   className="btn btn-success btn-sm btn-icon"
                   data-tour={`upload-${i}`}
-                  disabled={!ended || !active || done}
+                  disabled={!ended || !active}
                   onClick={() => report(uploadSession(session))}
                 >
-                  <IconUpload /> {done ? "Uploaded" : "Upload"}
+                  <IconUpload /> Upload
                 </button>
               </div>
             );
@@ -648,7 +651,7 @@ function Reset() {
         open={dlg === "candidate"}
         danger
         title="Reset candidate?"
-        message={`Candidate ${no.trim().toUpperCase()} will lose their progress and must start again.`}
+        message={`Candidate ${no.trim().toUpperCase()} will get their time and question paper restored and can log in again straight away.`}
         confirmLabel="Reset"
         onCancel={() => setDlg(null)}
         onConfirm={() => {

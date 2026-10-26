@@ -63,7 +63,7 @@ export const EXERCISES = [
       "Candidate NSG26009 has been flagged several times, but the invigilator confirms it was a false alarm. Clear the infractions for NSG26009 only.",
     prepare: () => stageState("flagged"),
     steps: [
-      { label: "Remove infractions for NSG26009", match: is("unflag", { examNo: "NSG26009" }) },
+      { label: "Unflag NSG26009", match: is("unflag", { examNo: "NSG26009" }) },
     ],
     wrong: (a) =>
       ["reset_candidate", "reset_server", "end_exam"].includes(a.type) ||

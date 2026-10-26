@@ -6,7 +6,7 @@ const KEY = "caosce-sim-state-v1";
 const Ctx = createContext(null);
 export const useOsce = () => useContext(Ctx);
 
-export const SERVER_LOGIN = { id: "101", password: "demo" };
+export const SERVER_LOGIN = { id: "104", password: "A7K2PQ" };
 
 function load() {
   try {
@@ -21,7 +21,9 @@ function load() {
 const ok = (msg, extra = {}) => ({ ok: true, msg, ...extra });
 const failBase = (msg) => ({ ok: false, msg });
 const uid = () => Math.random().toString(36).slice(2, 9);
-const NO_NET = "No internet connection. Connect to the internet and try again.";
+// Creating the centre, downloading, synchronizing and uploading need internet (the manager's mobile hotspot).
+export const NO_NET =
+  "The server laptop is not connected to the internet. Turn on your mobile hotspot, connect the server laptop to it and try again.";
 const isProcKey = (k) => /^p[1-3]$/.test(k);
 const labelOf = (key) => COMPONENTS.find((c) => c.key === key)?.label || key;
 
@@ -45,8 +47,19 @@ export function OsceProvider({ children }) {
   const applyScenario = (patch = {}) => setS({ ...freshOsce(), ...patch });
 
   /* ---------- server ---------- */
+  // Step 1 on a new server laptop. Needs internet (mobile hotspot).
+  const createCentre = (id, password) => {
+    if (!s.online) return fail(NO_NET);
+    if (id.trim() !== SERVER_LOGIN.id || password.trim() !== SERVER_LOGIN.password)
+      return fail("Invalid Server ID or password");
+    setS((st) => ({ ...st, centreCreated: true }));
+    return ok("Centre created successfully");
+  };
+
+  // Login works offline. It only needs the centre to have been created.
   const login = (id, password) => {
-    if (id.trim() !== SERVER_LOGIN.id || password !== SERVER_LOGIN.password)
+    if (!s.centreCreated) return fail("Create the centre first");
+    if (id.trim() !== SERVER_LOGIN.id || password.trim() !== SERVER_LOGIN.password)
       return fail("Invalid server ID or password");
     setS((st) => ({ ...st, loggedIn: true }));
     return ok("Login successful");
@@ -57,7 +70,8 @@ export function OsceProvider({ children }) {
 
   const download = () => {
     if (!s.online) return fail(NO_NET);
-    setS((st) => ({ ...st, downloaded: true, candidates: makeOsceCandidates(24) }));
+    // A new download clears the whitelist, so it must be done before the station laptops are approved.
+    setS((st) => ({ ...st, downloaded: true, candidates: makeOsceCandidates(24), ips: [] }));
     return ok("Examination downloaded");
   };
 
@@ -311,7 +325,7 @@ export function OsceProvider({ children }) {
 
   const value = {
     ...s,
-    login, logout, setOnline, wipe, applyScenario,
+    createCentre, login, logout, setOnline, wipe, applyScenario,
     download, activate, upload, sync,
     startComponent, endComponent,
     createExaminer, deleteExaminer, assignExaminer, makeLead,

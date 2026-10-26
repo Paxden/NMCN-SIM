@@ -45,7 +45,7 @@ export const SCENARIOS = [
     },
     steps: [
       {
-        label: "Remove infractions for NSG26009",
+        label: "Unflag NSG26009",
         match: (a) => a.type === "unflag" && a.payload.examNo === "NSG26009",
       },
     ],

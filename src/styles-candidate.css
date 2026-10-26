@@ -1,0 +1,42 @@
+/* Candidate computer. Append to the end of src/styles.css. */
+
+.cc-fab { position: fixed; left: 16px; bottom: 64px; z-index: 40; background: #0f766e; color: #fff; border: 0; border-radius: 999px; padding: 10px 18px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px #0004; }
+.cc-fab:hover { background: #115e59; }
+
+.cc-dock { position: fixed; top: 0; right: 0; bottom: 0; width: 380px; background: #fff; border-left: 1px solid #e5e7eb; box-shadow: -4px 0 16px #0002; z-index: 40; display: flex; flex-direction: column; }
+.cc-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #0f766e; color: #fff; }
+.cc-body { flex: 1; overflow: auto; padding: 12px 14px 20px; }
+
+/* the "monitor" of the candidate computer */
+.cc-screen { border: 3px solid #1f2937; border-radius: 8px; background: #f8fafc; padding: 14px; }
+.cc-login h3 { margin: 0 0 8px; }
+.cc-login label { display: block; font-weight: 600; margin: 8px 0 4px; }
+.cc-who { display: flex; flex-direction: column; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+.cc-who span { font-size: 12px; color: #6b7280; }
+.cc-qhead { display: flex; justify-content: space-between; font-size: 13px; color: #6b7280; margin-bottom: 6px; }
+.cc-q { margin: 0 0 10px; font-weight: 600; line-height: 1.4; }
+.cc-opts { display: grid; gap: 6px; margin-bottom: 10px; }
+.cc-opt { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 14px; }
+.cc-opt:hover { border-color: #0f766e; }
+.cc-opt.on { border-color: #0f766e; background: #ccfbf1; }
+.cc-opt input { width: auto; margin-top: 3px; }
+.cc-nav { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.cc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 4px; max-height: 110px; overflow: auto; padding: 4px; margin-bottom: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; }
+.cc-n { padding: 4px 0; font-size: 11px; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; cursor: pointer; }
+.cc-n.done { background: #bbf7d0; border-color: #86efac; }
+.cc-n.cur { outline: 2px solid #0f766e; }
+
+.cc-tools { margin-top: 14px; }
+.cc-tools-title { font-weight: 700; margin-bottom: 8px; }
+
+/* make room for the dock, like the exercise Task panel */
+body.cc-open { padding-right: 380px; }
+body.cc-open .toast { right: 400px; }
+body.cc-open .sim { right: 396px; }
+
+@media (max-width: 900px) {
+  body.cc-open { padding-right: 0; padding-bottom: 55vh; }
+  body.cc-open .toast { right: 20px; }
+  body.cc-open .sim { right: 16px; bottom: calc(55vh + 16px); }
+  .cc-dock { top: auto; left: 0; width: auto; height: 55vh; border-left: 0; border-top: 1px solid #e5e7eb; }
+}

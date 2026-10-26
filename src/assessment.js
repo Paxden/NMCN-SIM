@@ -1,5 +1,5 @@
 import { stageState } from "./data";
-import { exerciseProgress, is, wrongCount } from "./exercises";
+import { CBT_SERVER_LOGIN, exerciseProgress, is, wrongCount } from "./exercises";
 
 // Placeholder standard. The examining body should confirm the real thresholds.
 export const STANDARD = {
@@ -9,6 +9,8 @@ export const STANDARD = {
   taskPass: 60, // a task passes if completed with a score at or above this
   penaltyPerMistake: 10,
 };
+
+const L = CBT_SERVER_LOGIN;
 
 // small seeded random generator so a task can be rebuilt identically from the attempt seed
 const rng = (seed) => {
@@ -37,11 +39,9 @@ const FACTORIES = [
     area: "Server set-up",
     mustPass: true,
     timeLimit: 240,
-    situation:
-      "You have just arrived at the exam centre and the server has not been set up. Get Session 1 ready so that its candidates can start writing.",
+    situation: `You have just arrived at the exam centre with your server login details: Server ID ${L.id}, password ${L.password}. The server system is connected to the internet. Get Session 1 ready so that its candidates can start writing.`,
     prepare: () => stageState("start"),
     steps: [
-      { match: is("server_created") },
       { match: is("login") },
       { match: is("download") },
       { match: is("activate_exam") },
@@ -52,26 +52,25 @@ const FACTORIES = [
 
   () => ({
     id: "offline",
-    title: "Exam data not on the server",
+    title: "Server system not online",
     area: "Connectivity",
     mustPass: false,
-    timeLimit: 150,
+    timeLimit: 180,
     ignoreErrors: true,
-    situation:
-      "The exam has not been downloaded onto this server, and the server cannot reach the central server. Get the exam data onto the server.",
-    prepare: () => ({ ...stageState("loggedIn"), online: false }),
-    steps: [{ match: is("net_on") }, { match: is("download") }],
+    situation: `The exam data has not been downloaded onto the server system, and the server system is not connected to the internet. Your server login details are Server ID ${L.id}, password ${L.password}. Get the exam data onto the server.`,
+    prepare: () => ({ ...stageState("start"), online: false }),
+    steps: [{ match: is("net_on") }, { match: is("login") }, { match: is("download") }],
   }),
 
   (r) => {
     const n = no(pickNo(r));
     return {
       id: "disconnect",
-      title: "Candidate computer crashed",
+      title: "Power outage on a candidate computer",
       area: "Candidate management",
       mustPass: false,
       timeLimit: 120,
-      situation: `Candidate ${n} says the computer crashed and the screen went blank. They must carry on from where they stopped.`,
+      situation: `A power outage restarted candidate ${n}'s computer and the screen went blank. The candidate must carry on from where they stopped.`,
       prepare: () => stageState("writing"),
       steps: [{ match: is("relogin", { examNo: n }) }],
       wrong: (a) =>
@@ -86,11 +85,11 @@ const FACTORIES = [
     const n = no(a);
     return {
       id: "infraction",
-      title: "Candidate flagged by mistake",
+      title: "Unflag a candidate for infraction",
       area: "Infractions",
       mustPass: false,
       timeLimit: 120,
-      situation: `The invigilator confirms that candidate ${n} was flagged by mistake. It was a false alarm. Sort it out without affecting any other candidate.`,
+      situation: `Candidate ${n} was warned three times on their own computer and has been flagged for infraction. The centre manager has decided to lift the flag. Sort it out without affecting any other candidate.`,
       prepare: () => {
         const s = stageState("writing");
         const rec = (examNo, reason, i) => ({ id: `i${i}`, examNo, reason, at: i });
@@ -115,22 +114,19 @@ const FACTORIES = [
     const k = 20 + Math.floor(r() * 70);
     return {
       id: "mistake",
-      title: "Candidate submitted by mistake",
+      title: "Candidate has the wrong time or paper",
       area: "Candidate management",
       mustPass: true,
       timeLimit: 180,
-      situation: `Candidate ${n} pressed Submit by accident after answering only ${k} questions. They need to be able to write the exam again.`,
+      situation: `Candidate ${n} has less time than the other candidates and the wrong question paper, because the browser kept data from an earlier exam. Restore the candidate's time and paper so they can write the exam.`,
       prepare: () => {
         const s = stageState("writing");
         s.candidates = s.candidates.map((c) =>
-          c.examNo === n ? { ...c, status: "submitted", answered: k } : c
+          c.examNo === n ? { ...c, status: "writing", answered: k } : c
         );
         return s;
       },
-      steps: [
-        { match: is("reset_candidate", { examNo: n }) },
-        { match: is("relogin", { examNo: n }) },
-      ],
+      steps: [{ match: is("reset_candidate", { examNo: n }) }],
       wrong: (x) =>
         ["reset_server", "end_exam"].includes(x.type) ||
         (x.type === "reset_candidate" && x.payload.examNo !== n),
@@ -144,7 +140,7 @@ const FACTORIES = [
     mustPass: true,
     timeLimit: 180,
     situation:
-      "Exam time is over. Make sure the exam is closed and the results of both sessions reach the central server.",
+      "The sessions are over. Make sure the exam is ended and the responses of both sessions reach the central server.",
     prepare: () => stageState("writing"),
     steps: [
       { match: is("end_exam") },

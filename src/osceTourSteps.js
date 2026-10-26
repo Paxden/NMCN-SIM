@@ -1,6 +1,12 @@
-// Guided tour for the CAOSCE server. Each step opens a page, sets the server to a matching
-// situation, then circles a target. A target is a CSS selector, or { sel, text } to pick the
-// element whose text starts with `text`, so the pages need no extra attributes.
+// Guided tour for the CAOSCE server.
+// Each step opens a page, sets the server to a matching situation, then circles a target.
+// Pages are explained first, then their buttons and functions.
+//
+// A target is one of:
+//   ".css-selector"                      the first element that matches
+//   { sel, text }                        the element whose text starts with `text`
+//   { sel, count: 10 }                   the first 10 elements that match, circled together
+//   null                                 a centred message with nothing circled
 import {
   EXAMINERS,
   activated,
@@ -15,14 +21,14 @@ import {
 const started = (extra = {}) => activated({ components: comps({ osce: "started" }), ...extra });
 const FIRST_CARD = ".comp-card:first-child";
 
-// Examiners with procedures, so the examiner computer has something to show.
+// Examiners with procedures, so the examiner laptop has something to show.
 const crew = () => [
   { ...EXAMINERS[0], procedure: "rn-p1" },
   { ...EXAMINERS[1], procedure: "cc-p2" },
   { ...EXAMINERS[2], lead: true },
 ];
 
-// The examiner computer, already signed in as Mrs Okoro on a given page.
+// The examiner laptop, already signed in as Mrs Okoro on a given page.
 const examinerComputer = (page, session = {}) =>
   started({
     components: comps({ osce: "started", viva: "started", research: "started" }),
@@ -32,215 +38,324 @@ const examinerComputer = (page, session = {}) =>
   });
 
 export const OSCE_TOUR = [
+  /* ================= BEFORE THE HALL (needs your mobile hotspot) ================= */
+  {
+    path: "/osce/createcentre",
+    state: () => ({ loggedIn: false, centreCreated: false }),
+    target: ".auth",
+    title: "Create the centre",
+    body: "This is the first page of the CAOSCE server. On the server laptop, open localhost:5000/createcentre. Here you set up your centre with the Server ID and the 6-character password the NMCN gave you. Creating the centre needs internet, so connect the laptop to your mobile hotspot first. In this trainer the details are in the yellow box.",
+  },
+  {
+    path: "/osce/createcentre",
+    state: () => ({ loggedIn: false, centreCreated: false }),
+    target: { sel: "button", text: "Create centre" },
+    title: "Click Create centre",
+    body: "Type the Server ID and the password, then click Create centre. A green message tells you the centre has been created.",
+  },
   {
     path: "/osce/login",
-    state: () => ({ loggedIn: false }),
+    state: () => ({ loggedIn: false, centreCreated: true }),
     target: ".auth",
-    title: "Log in to the server",
-    body: "On exam day the exam manager carries the server laptop to the OSCE hall and logs in here. In this trainer the details are shown in the yellow box: Server ID 101, password demo.",
+    title: "Log in",
+    body: "This is the login page (localhost:5000/login). Log in with the same Server ID and password you used to create the centre. You do not need internet to log in.",
   },
   {
     path: "/osce/home",
-    state: () => ({ loggedIn: true }),
+    state: () => ({ loggedIn: true, centreCreated: true }),
     target: ".osce-main .card",
-    title: "Connect the laptops first",
-    body: "Before anything else, the manager connects the server laptop to the wifi or router, then connects every station laptop to the same wifi: 6 laptops for one team, 12 for two teams. The server's wifi IP address is what the station laptops type in their browsers.",
+    title: "The Home page",
+    body: "After you log in you arrive here (localhost:5000). Home shows the examination on this server. It says 'No examination loaded' until you download one.",
   },
   {
     path: "/osce/home",
-    state: () => ({ loggedIn: true }),
+    state: () => ({ loggedIn: true, centreCreated: true }),
     target: ".osce-side",
     title: "The side menu",
-    body: "Home, then the OSCE menu with Dashboard, Download, Upload, IP Whitelist and Synchronize. Log out is at the bottom of that list.",
+    body: "Home is at the top. Under OSCE you find Dashboard, Download, Upload, IP Whitelist and Synchronize. Log out is at the bottom.",
   },
   {
     path: "/osce/download",
-    state: () => ({ loggedIn: true }),
+    state: () => ({ loggedIn: true, centreCreated: true }),
+    target: ".osce-main .card",
+    title: "The Download page",
+    body: "Use this page to bring the examination onto the server laptop: the exam, the candidates, and the procedures and questions. Do this before you travel to the hall, with your mobile hotspot for internet.",
+  },
+  {
+    path: "/osce/download",
+    state: () => ({ loggedIn: true, centreCreated: true }),
     target: { sel: "button", text: "Download" },
     title: "Download the examination",
-    body: "Needs internet. It brings the examination, the candidates and the procedures and questions from the central server. Do this before the day, while you still have a connection.",
+    body: "Click Download and wait until it finishes. If it fails, check that the laptop is connected to your hotspot.",
   },
   {
     path: "/osce/download",
     state: () => downloaded(),
     target: { sel: "button", text: "Activate Examination" },
     title: "Activate the examination",
-    body: "After the download you see the exam name and the number of candidates. Click Activate Examination. Nothing can be started until this is done.",
+    body: "After the download you can see the exam name and the number of candidates. Click Activate Examination to make the exam ready for use.",
   },
+
+  /* ================= AT THE HALL ================= */
   {
-    path: "/osce/dashboard",
+    path: "/osce/home",
     state: () => activated(),
-    target: ".osce-main table",
-    title: "The CAOSCE dashboard",
-    body: "A table of the examinations on this server, with their programs and procedures.",
+    target: null,
+    title: "At the hall: connect everything",
+    body: "1. Plug in and switch on all the station laptops. 2. Connect the server laptop to the MTN 5G router. The router password is exams@nmcn. 3. Connect every station laptop to the same router: 6 laptops for one team, 12 for two teams. Find the server laptop's IP address on the router (for example 192.168.1.100). The station laptops will type it in their browsers.",
   },
   {
-    path: "/osce/dashboard",
+    path: "/osce/ip-whitelist",
     state: () => activated(),
-    target: ".osce-main table .btn",
-    title: "Open the examination",
-    body: "Click View to open the examination and its components.",
-  },
-  {
-    path: "/osce/exam",
-    state: () => activated(),
-    target: ".exam-head",
-    title: "The examination",
-    body: "The exam name and the number of candidates downloaded.",
-  },
-  {
-    path: "/osce/exam",
-    state: () => activated({ components: comps({ viva: "started" }) }),
-    target: ".comp-row",
-    title: "OSCE Components",
-    body: "Viva, Client Care, Expected Family Care and Research are scored on Day 1. The OSCE card is for the OSCE itself. Each card shows how many candidates have been scored, and has a Start and an End button.",
-  },
-  {
-    path: "/osce/exam",
-    state: () => activated(),
-    target: `${FIRST_CARD} .btn-primary`,
-    title: "Start a component",
-    body: "Click Start. A confirmation asks you to be sure. After the OSCE starts, this button changes to View and candidates can log in at the question stations.",
-  },
-  {
-    path: "/osce/exam",
-    state: () => activated(),
-    target: ".osce-top .row-gap",
-    title: "Examiners and Candidates",
-    body: "The two buttons at the top right open the list of examiners and the list of candidates.",
-  },
-  {
-    path: "/osce/candidates",
-    state: () => activated(),
-    target: ".osce-main table",
-    title: "Candidates",
-    body: "Every candidate downloaded for the examination, with exam number and program. Use the search box to find one.",
-  },
-  {
-    path: "/osce/examiners",
-    state: () => activated({ examiners: crew() }),
-    target: ".stack-form",
-    title: "Create an examiner",
-    body: "Enter the full name, a username and a password, then click Create. The examiner uses these details to log in on the examiner computer.",
-  },
-  {
-    path: "/osce/examiners",
-    state: () => activated({ examiners: crew() }),
-    target: ".two-col .table-wrap",
-    title: "Examiner list",
-    body: "Every examiner with their password and procedure. Delete removes an examiner after you confirm.",
-  },
-  {
-    path: "/osce/exam",
-    state: () => started(),
-    target: `${FIRST_CARD} .btn-primary`,
-    title: "View the OSCE",
-    body: "Once the OSCE has started, the Start button has become View. Click it to open the programs.",
-  },
-  {
-    path: "/osce/view",
-    state: () => started({ examiners: crew() }),
-    target: ".prog-card",
-    title: "Programs",
-    body: "Each program card shows its procedures, candidates, examiners and progress. Click a program to open it. Assign Examiner is at the top right.",
-  },
-  {
-    path: "/osce/view/program/rn",
-    state: () => started({ examiners: crew(), candidates: partwayCandidates() }),
-    target: ".proc-list",
-    title: "Procedures of a program",
-    body: "Each procedure has its own progress bar. View examiner opens the assign page for that procedure.",
-  },
-  {
-    path: "/osce/view/assign/rn-p1",
-    state: () => started({ examiners: crew() }),
-    target: "table",
-    title: "Assign examiners",
-    body: "Pick a procedure for each examiner and click Update. Make lead sets the lead (chief) examiner, who can see the candidate instructions and requirements of every procedure.",
-  },
-  {
-    path: "/osce/view/program/rn",
-    state: () => started({ examiners: crew(), candidates: partwayCandidates() }),
-    target: ".stn-row",
-    title: "Follow the candidates",
-    body: "Each candidate goes P1, Q1, P2, Q2, P3, Q3. A circle is grey until the candidate finishes that station, then it turns green.",
-  },
-  {
-    path: "/osce/exam",
-    state: () => started(),
-    target: ".sim-fabs",
-    title: "The two station computers",
-    body: "At the bottom right, Examiner computer and Candidate computer open the station laptops. Sandbox tools holds the helpers that stand in for the rest of the hall.",
+    target: null,
+    title: "Download first, then whitelist",
+    body: "Always download the examination first and do the whitelist after it. A new download clears the whitelist, and you would have to start it again. Finish the whitelist before you start any component.",
   },
   {
     path: "/osce-station/8000",
     state: () => activated(),
     target: ".browser-bar",
-    title: "An examiner laptop",
-    body: "On an examiner laptop, open the browser and type the server's wifi IP address followed by :8000/addipaddress. The page shows one button.",
+    title: "A procedure station laptop",
+    body: "Procedure stations use port 8000. On this laptop, open the browser and type the server's IP address followed by :8000/addipaddress, for example 192.168.1.100:8000/addipaddress.",
   },
   {
     path: "/osce-station/8000",
     state: () => activated(),
     target: { sel: "button", text: "Add IP address" },
     title: "Add the IP address",
-    body: "Click Add IP address. A success message appears and the server now knows this laptop. Every station laptop does this once.",
+    body: "Click Add IP address. A success message appears and the server now knows this laptop. Every station laptop must do this once.",
   },
   {
     path: "/osce-station/7000",
     state: () => activated(),
     target: ".browser-bar",
-    title: "A candidate laptop",
-    body: "Candidate laptops do the same on port 7000: the wifi IP address followed by :7000/addipaddress, then click the button.",
+    title: "A question station laptop",
+    body: "Question stations use port 7000. On the laptop, type the server's IP address followed by :7000/addipaddress, then click the button to add its IP address.",
+  },
+  {
+    path: "/osce/ip-whitelist",
+    state: () => activated({ ips: [...STATION_IPS(false), ip("i3", "192.168.1.43", 8000), ip("i4", "192.168.1.44", 7000)] }),
+    target: ".osce-main table",
+    title: "The IP Whitelist page",
+    body: "This page lists every laptop that added its IP address. Each row shows the IP address, the type of station and the status.",
   },
   {
     path: "/osce/ip-whitelist",
     state: () => activated({ ips: [...STATION_IPS(false), ip("i3", "192.168.1.43", 8000), ip("i4", "192.168.1.44", 7000)] }),
     target: { sel: "button", text: "Approve" },
-    title: "Approve on the IP Whitelist",
-    body: "Every laptop that added its address is listed here. Click Approve in front of each one. Until then it gets access denied.",
+    title: "Approve the laptops",
+    body: "Click Approve in front of each laptop. Only approved laptops can open the station pages. A laptop that is not approved sees 'Access denied'.",
   },
+
+  /* ================= THE EXAMINATION ================= */
+  {
+    path: "/osce/dashboard",
+    state: () => activated(),
+    target: ".osce-main table",
+    title: "The Dashboard",
+    body: "This page shows the examination details: the exam name, its programs and procedures.",
+  },
+  {
+    path: "/osce/dashboard",
+    state: () => activated(),
+    target: ".osce-main table .btn",
+    title: "Open the examination",
+    body: "Click View to open the examination.",
+  },
+  {
+    path: "/osce/exam",
+    state: () => activated(),
+    target: ".exam-head",
+    title: "The examination page",
+    body: "This page shows the exam name and the number of candidates. Below it are the cards for each part of the exam.",
+  },
+  {
+    path: "/osce/exam",
+    state: () => activated({ components: comps({ viva: "started" }) }),
+    target: ".comp-row",
+    title: "The exam parts",
+    body: "Viva, Client Care, Expected Family Care and Research are scored on Day 1. The OSCE card is for Day 2. Each card shows how many candidates have been scored and has a Start button and an End button.",
+  },
+  {
+    path: "/osce/exam",
+    state: () => activated({ examiners: crew() }),
+    target: { sel: ".osce-top .btn", text: "Examiners" },
+    title: "The Examiners button",
+    body: "Click Examiners to see the list of examiners and to create new ones.",
+  },
+  {
+    path: "/osce/examiners",
+    state: () => activated({ examiners: crew() }),
+    target: ".two-col .table-wrap",
+    title: "The Examiners page",
+    body: "This page lists all the examiners. Each row shows the examiner's name, username, password and procedure. Delete removes an examiner after you confirm.",
+  },
+  {
+    path: "/osce/examiners",
+    state: () => activated({ examiners: crew() }),
+    target: ".stack-form",
+    title: "Create an examiner",
+    body: "Type the full name, a username and a password, then click Create. The examiner will use this username and password to log in on the procedure station laptop.",
+  },
+  {
+    path: "/osce/exam",
+    state: () => activated(),
+    target: { sel: ".osce-top .btn", text: "Candidates" },
+    title: "The Candidates button",
+    body: "Click Candidates to see the candidates downloaded for this exam.",
+  },
+  {
+    path: "/osce/candidates",
+    state: () => activated(),
+    target: { sel: ".osce-main table tbody tr", count: 10 },
+    title: "The Candidates page",
+    body: "This page lists every candidate downloaded for the exam, with the exam number and program. Here are the first 10.",
+  },
+  {
+    path: "/osce/candidates",
+    state: () => activated(),
+    target: ".osce-main input",
+    title: "Search for a candidate",
+    body: "Type an exam number or a name in the search box to find one candidate quickly.",
+  },
+
+  /* ================= START THE EXAM ================= */
+  {
+    path: "/osce/exam",
+    state: () => activated({ ips: STATION_IPS(true), examiners: crew() }),
+    target: `${FIRST_CARD} .btn-primary`,
+    title: "Start a component",
+    body: "Click Start to start a component. Examiners can only grade candidates in a component after you have started it. Do this only after the whitelist is done.",
+  },
+  {
+    path: "/osce/exam",
+    state: () => started(),
+    target: `${FIRST_CARD} .btn-primary`,
+    title: "Open the OSCE",
+    body: "Once the OSCE has started, its Start button becomes View. Click View to open the programs.",
+  },
+  {
+    path: "/osce/view",
+    state: () => started({ examiners: crew() }),
+    target: ".prog-card",
+    title: "The Programs page",
+    body: "This page lists the programs taking the OSCE. Each card shows the program's procedures, candidates, examiners and progress. Click a program to open it.",
+  },
+  {
+    path: "/osce/view",
+    state: () => started({ examiners: crew() }),
+    target: { sel: ".osce-top .btn", text: "Assign" },
+    title: "The Assign Examiner button",
+    body: "Click Assign Examiner to give each examiner a procedure.",
+  },
+  {
+    path: "/osce/view/assign/rn-p1",
+    state: () => started({ examiners: crew() }),
+    target: "table",
+    title: "The Assign Examiner page",
+    body: "This page lists the examiners. Next to each name you can choose a procedure.",
+  },
+  {
+    path: "/osce/view/assign/rn-p1",
+    state: () => started({ examiners: crew() }),
+    target: { sel: "button", text: "Update" },
+    title: "Choose a procedure",
+    body: "Pick a procedure for the examiner, then click Update to save it.",
+  },
+  {
+    path: "/osce/view/assign/rn-p1",
+    state: () => started({ examiners: crew() }),
+    target: { sel: "button", text: "Make lead" },
+    title: "Make lead",
+    body: "Make lead sets the lead (chief) examiner. The lead examiner can see the instructions and requirements of every procedure.",
+  },
+  {
+    path: "/osce/view/program/rn",
+    state: () => started({ examiners: crew(), candidates: partwayCandidates() }),
+    target: ".proc-list",
+    title: "A program's page",
+    body: "This page shows one program. At the top are its procedures, each with a progress bar. View examiner opens the page where you assign an examiner to that procedure.",
+  },
+  {
+    path: "/osce/view/program/rn",
+    state: () => started({ examiners: crew(), candidates: partwayCandidates() }),
+    target: ".stn-row",
+    title: "Follow the candidates",
+    body: "Below is the list of candidates. Each candidate goes through six stations: P1, Q1, P2, Q2, P3, Q3. P is a procedure station and Q is a question station. A circle is grey until the candidate finishes that station, then it turns green.",
+  },
+  {
+    path: "/osce/exam",
+    state: () => started(),
+    target: ".sim-fabs",
+    title: "The station laptops in this trainer",
+    body: "At the bottom right, Examiner computer and Candidate computer open the two station laptops, so you can try what examiners and candidates do. Sandbox tools holds helpers for the rest of the hall.",
+  },
+
+  /* ================= THE EXAMINER LAPTOP (:8000) ================= */
   {
     path: "/osce-station/8000",
     state: () => activated({ ips: STATION_IPS(true), examiners: crew() }),
     target: ".browser-body",
     title: "Examiner login",
-    body: "After approval, the examiner computer (:8000) shows the examiner login. The examiner enters the username and password you created.",
+    body: "Once approved, the :8000 address shows the examiner login page. The examiner types the username and password you created for them.",
+  },
+  {
+    path: "/osce-station/8000",
+    state: () => examinerComputer("dashboard"),
+    target: ".ex-main",
+    title: "The examiner's Dashboard",
+    body: "This page shows the examiner's name, the procedure given to them, and the exam parts with the number of candidates scored.",
   },
   {
     path: "/osce-station/8000",
     state: () => examinerComputer("dashboard"),
     target: ".ex-side",
     title: "The examiner's menu",
-    body: "Dashboard, Research, Viva, Client Care, Expected Family Care, Procedure, Candidates and Logout.",
+    body: "The menu opens each part: Research, Viva, Client Care, Expected Family Care, Procedure and Candidates. Logout is at the bottom.",
+  },
+  {
+    path: "/osce-station/8000",
+    state: () => examinerComputer("viva"),
+    target: ".ex-main",
+    title: "A scoring page",
+    body: "This is the Viva page. It shows whether the Viva has started and the list of candidates already scored. Every part works the same way. If a part has not started, the examiner cannot score in it.",
   },
   {
     path: "/osce-station/8000",
     state: () => examinerComputer("viva"),
     target: ".ex-search",
     title: "Find the candidate",
-    body: "Each component page has its name at the top and a search box. Type the candidate's exam number and click Search. A component that has not started cannot be scored.",
+    body: "Type the candidate's exam number and click Search to open the scoring page for that candidate.",
   },
   {
     path: "/osce-station/8000",
     state: () => examinerComputer("viva", { key: "viva", examNo: "NSG26001" }),
     target: ".score-steps",
     title: "Score the candidate",
-    body: "For every step the examiner picks a grade: 0, 0.5, 1, 1.5 or 2. When every step is graded, Submit score saves it.",
+    body: "Give every step a grade: 0, 0.5, 1, 1.5 or 2. When all steps are graded, click Submit score.",
   },
   {
     path: "/osce-station/8000",
     state: () => examinerComputer("procedure"),
-    target: ".ex-main",
-    title: "The procedure page",
-    body: "Shows the examiner's own procedure with its candidate instructions and requirements. Scoring a candidate here turns that station green on the server. A lead examiner chooses any procedure and sees them all.",
+    target: ".ex-brief",
+    title: "The Procedure page",
+    body: "This page is for the examiner's own procedure. At the top are the candidate instructions on the left and the requirements on the right. The examiner reads these before the candidates come in.",
   },
+  {
+    path: "/osce-station/8000",
+    state: () => examinerComputer("procedure"),
+    target: ".ex-search",
+    title: "Score a candidate",
+    body: "Below the instructions, search for the candidate by exam number to score them. When the score is saved, that procedure station turns green on the server.",
+  },
+
+  /* ================= THE CANDIDATE LAPTOP (:7000) ================= */
   {
     path: "/osce-station/7000",
     state: () => started({ ips: STATION_IPS(true) }),
     target: ".browser-body",
     title: "Candidate login",
-    body: "The candidate computer (:7000) shows the candidate login. The candidate enters the exam number. It only works after the OSCE has been started.",
+    body: "Once approved, the :7000 address shows the candidate login page. The candidate types the exam number. It only works after the OSCE has started.",
   },
   {
     path: "/osce-station/7000",
@@ -251,7 +366,7 @@ export const OSCE_TOUR = [
       }),
     target: ".q-cards",
     title: "Choose a question station",
-    body: "The candidate first chooses which question station to attend. A station that has been submitted cannot be opened again.",
+    body: "The candidate chooses which question station to attend. A station that has been submitted cannot be opened again.",
   },
   {
     path: "/osce-station/7000",
@@ -262,34 +377,50 @@ export const OSCE_TOUR = [
       }),
     target: ".cbt",
     title: "The question page",
-    body: "A simple computer-based test: one question at a time, with Previous, Next and a number for every question. Submitting turns that Q station green on the server.",
+    body: "One question is shown at a time, with Previous, Next and a number for every question. When the candidate submits, that Q station turns green on the server.",
   },
+
+  /* ================= AFTER THE EXAM ================= */
   {
     path: "/osce/exam",
     state: () => started({ candidates: finishedCandidates() }),
     target: `${FIRST_CARD} .btn-danger`,
     title: "End the OSCE",
-    body: "When all candidates have finished, click End on the OSCE card and confirm. It cannot be started again.",
+    body: "When all candidates have finished, click End on the OSCE card and confirm. After this the OSCE cannot be started again.",
+  },
+  {
+    path: "/osce/upload",
+    state: () => started({ candidates: finishedCandidates(), components: comps({ osce: "ended" }) }),
+    target: ".osce-main",
+    title: "The Upload page",
+    body: "This page sends the CAOSCE results to the central server. It needs internet. The MTN router has no data, so connect the server laptop to your mobile hotspot again.",
   },
   {
     path: "/osce/upload",
     state: () => started({ candidates: finishedCandidates(), components: comps({ osce: "ended" }) }),
     target: ".upload-bar",
     title: "Upload the results",
-    body: "The big green bar uploads the CAOSCE results to the central server. You need internet for this.",
+    body: "Click the green bar to upload. A green message tells you the upload is done.",
+  },
+  {
+    path: "/osce/sync",
+    state: () => activated(),
+    target: ".osce-main .card",
+    title: "The Synchronize page",
+    body: "Use this page to bring new data from the central server onto the server laptop, for example a candidate who was added late. It needs internet, so use your mobile hotspot.",
   },
   {
     path: "/osce/sync",
     state: () => activated(),
     target: { sel: "button", text: "Synchronize" },
-    title: "Synchronize",
-    body: "Brings new data from the central server, for example candidates added late. It also needs internet.",
+    title: "Click Synchronize",
+    body: "Click Synchronize and wait for the message that the new data has been downloaded.",
   },
   {
     path: "/osce/dashboard",
     state: () => activated(),
     target: null,
     title: "That is the whole server",
-    body: "Now try Free play to click around, the Exercises for real hall situations, and the Assessment when you are ready.",
+    body: "Now try Free play to click around, the Exercises for real situations in the hall, and the Assessment when you are ready.",
   },
 ];

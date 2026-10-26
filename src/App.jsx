@@ -2,14 +2,23 @@ import { useEffect } from "react";
 import { SimProvider, useSim } from "./store";
 import { OsceProviders } from "./osceTrainer";
 import { navigate, usePath } from "./router";
-import { AdminShell, CreateServer, Login } from "./pages";
-import { AssessmentPanel, ExercisePanel, FreePanel, MenuButton, Toast } from "./components";
+import { AdminShell, Login } from "./pages";
+import {
+  AssessmentPanel,
+  ExercisePanel,
+  FreePanel,
+  MenuButton,
+  Toast,
+} from "./components";
 import { AssessmentPage, AssessmentResult, ExerciseList, Hub } from "./menu";
 import { OsceRoutes, StationPage } from "./osce";
 import { ChooseModule, SwitchModule, hasChosen } from "./chooser";
 import { Tour } from "./tour";
 import { AuthProvider, useAuth } from "./auth";
 import { DashboardPage, LoginPage } from "./authPages";
+import { CandidateButton, CandidatePage } from "./candidate";
+
+const GUEST_KEY = "cbt-trainer-guest";
 
 function Routes() {
   const path = usePath();
@@ -17,51 +26,58 @@ function Routes() {
   const { loggedIn, mode, tour, exercise, assessment, adoptFree } = useSim();
 
   const isAdmin = user?.role === "admin";
-  const isApp = path === "/createserver" || path.startsWith("/admin");
+  const isGuest = !user && sessionStorage.getItem(GUEST_KEY) === "1";
+  const onServer = path.startsWith("/admin"); // CBT server pages
+  const onCand = path === "/candidate"; // CBT candidate computer
+  const inSim = onServer || onCand;
   const isStation = path.startsWith("/osce-station/");
   const isOsce = path === "/osce" || path.startsWith("/osce/");
+
   const known =
-    isApp ||
+    inSim ||
     isStation ||
     isOsce ||
-    ["/", "/exercises", "/assessment", "/assessment/result", "/login", "/dashboard", "/choose"].includes(path);
+    [
+      "/",
+      "/exercises",
+      "/assessment",
+      "/assessment/result",
+      "/login",
+      "/dashboard",
+      "/choose",
+    ].includes(path);
 
   useEffect(() => {
     if (!ready) return;
 
-    // Not signed in → login is the only page allowed.
-    if (!user) {
-      if (path !== "/login") navigate("/login");
-      return;
-    }
-
-    // A signed-in NMCN admin only ever sees the dashboard, never the simulation.
+    // A signed-in NMCN admin only ever sees the admin dashboard.
     if (isAdmin) {
       if (path !== "/dashboard") navigate("/dashboard");
       return;
     }
 
-    // Signed-in managers should not sit on the login page.
-    if (path === "/login") {
-      navigate("/choose");
+    // Legacy route: the CBT server starts at its login screen, not create-server.
+    if (path === "/createserver") {
+      navigate("/admin");
       return;
     }
 
-    if (!known) return navigate("/");
+    if (!known) {
+      navigate(isGuest ? "/choose" : "/");
+      return;
+    }
 
-    // After signing in, a manager first chooses CBT or CAOSCE.
-    if (path === "/" && !hasChosen(user)) navigate("/choose");
-  }, [ready, isAdmin, user, path, known]);
+    // Signed-in managers choose a module after login. Guests can choose directly too.
+    if (user && path === "/" && !hasChosen(user)) navigate("/choose");
+  }, [ready, isAdmin, user, path, known, isGuest]);
 
-  // Opening /createserver or /admin directly behaves like free play.
+  // Directly opening CBT server/candidate pages behaves like free play.
   useEffect(() => {
-    if (!isAdmin && isApp && mode === "menu") adoptFree();
-  }, [isAdmin, isApp, mode]);
+    if (!isAdmin && inSim && mode === "menu") adoptFree();
+  }, [isAdmin, inSim, mode, adoptFree]);
 
-  // Wait for the stored sign-in to be checked, so an admin never sees a flash of the trainer.
+  // Avoid flashing trainer pages while stored authentication is being checked.
   if (!ready) return <div className="boot">Loading...</div>;
-  // Signed out: render nothing except the login page (the effect above navigates).
-  if (!user && path !== "/login") return null;
   if (isAdmin && path !== "/dashboard") return null;
 
   let page = null;
@@ -74,21 +90,27 @@ function Routes() {
   else if (path === "/dashboard") page = <DashboardPage />;
   else if (isStation) page = <StationPage path={path} />;
   else if (isOsce) page = <OsceRoutes path={path} />;
-  else if (path === "/createserver") page = <CreateServer />;
-  else if (path.startsWith("/admin")) page = loggedIn ? <AdminShell path={path} /> : <Login />;
+  else if (onCand) page = <CandidatePage />;
+  else if (onServer) page = loggedIn ? <AdminShell path={path} /> : <Login />;
 
-  // The CAOSCE menu has its own "Switch CBT / CAOSCE" link, so skip the floating one there.
-  const showSwitch = !isAdmin && !!user && (path === "/" || (isOsce && path !== "/osce"));
+  // CAOSCE has its own switch link inside its main page.
+  const showSwitch =
+    !isAdmin &&
+    (isGuest || !!user) &&
+    (path === "/" || (isOsce && path !== "/osce"));
+  const taskOpen =
+    mode === "assessment" && assessment && assessment.phase !== "done";
 
   return (
     <>
       {page}
       {showSwitch && <SwitchModule />}
-      {isApp && mode === "free" && <FreePanel />}
-      {isApp && mode === "exercise" && exercise && <ExercisePanel />}
-      {isApp && mode === "guide" && tour && <Tour />}
-      {isApp && mode === "assessment" && assessment && assessment.phase !== "done" && <AssessmentPanel />}
-      {isApp && mode !== "guide" && !(mode === "assessment" && assessment && assessment.phase !== "done") && <MenuButton />}
+      {onServer && mode === "free" && <FreePanel />}
+      {inSim && mode === "exercise" && exercise && <ExercisePanel />}
+      {inSim && mode === "guide" && tour && <Tour />}
+      {inSim && taskOpen && <AssessmentPanel />}
+      {onServer && mode !== "guide" && !taskOpen && <MenuButton />}
+      {onServer && <CandidateButton />}
     </>
   );
 }

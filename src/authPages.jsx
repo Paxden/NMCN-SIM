@@ -6,7 +6,7 @@ import { Link, navigate } from "./router";
 import { forgetChoice } from "./chooser";
 
 // Change the name here once and every auth page picks it up.
-export const APP_NAME = "NMCN CAOSCE Simulation & Training";
+export const APP_NAME = "NMCN CBT & CAOSCE Simulation & Training";
 const APP_DESC =
   "Practise the exam-day tasks, then get assessed before you are deployed to a centre.";
 
@@ -182,6 +182,7 @@ export function LoginPage() {
     try {
       const u =
         mode === "login" ? await login(f.email, f.password) : await register(f);
+      sessionStorage.removeItem("cbt-trainer-guest");
       forgetChoice();
       navigate(u.role === "admin" ? "/dashboard" : "/choose");
     } catch (x) {
@@ -305,7 +306,12 @@ export function LoginPage() {
             <button
               type="button"
               className="btn btn-light block"
-              onClick={() => navigate("/")}
+              onClick={() => {
+                // Mark this browser tab as a guest session; no account is created.
+                sessionStorage.setItem("cbt-trainer-guest", "1");
+                forgetChoice();
+                navigate("/choose");
+              }}
             >
               Continue without signing in
             </button>
@@ -403,15 +409,7 @@ export function DashboardPage() {
 
   const mod = MODULE[kind];
 
-  const assign = async (m, centre) => {
-    try {
-      await api.assign(m._id, centre);
-      setMsg("");
-      load();
-    } catch (e) {
-      setMsg(e.message);
-    }
-  };
+
 
   const view = async (m) => {
     try {
@@ -501,7 +499,7 @@ export function DashboardPage() {
                 <th>{mod.label} status</th>
                 <th>{mod.label} best</th>
                 <th>{mod.label} attempts</th>
-                <th>Centre</th>
+               
                 <th></th>
               </tr>
             </thead>
@@ -532,23 +530,7 @@ export function DashboardPage() {
                     </td>
                     <td className="num">{best == null ? "-" : `${best}%`}</td>
                     <td className="num">{mod.attemptsOf(m)}</td>
-                    <td>
-                      <input
-                        style={{ width: 150 }}
-                        defaultValue={m.centre}
-                        placeholder={m.competent ? "Centre" : "Not eligible"}
-                        disabled={!m.competent}
-                        title={
-                          m.competent
-                            ? "Centre assignment is allowed once CBT is passed"
-                            : "CBT must be passed before a centre can be assigned"
-                        }
-                        onBlur={(e) =>
-                          e.target.value !== m.centre &&
-                          assign(m, e.target.value)
-                        }
-                      />
-                    </td>
+                   
                     <td>
                       <button
                         className="btn btn-primary btn-sm"

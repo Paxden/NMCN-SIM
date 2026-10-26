@@ -41,6 +41,7 @@ export const comps = (patch = {}) => ({
 });
 
 export const downloaded = (extra = {}) => ({
+  centreCreated: true,
   loggedIn: true,
   downloaded: true,
   candidates: makeOsceCandidates(24),
